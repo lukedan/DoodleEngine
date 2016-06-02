@@ -350,7 +350,9 @@ namespace DE {
 				virtual void OnInput(const Core::String&) {
 				}
 		};
+		class CommandComparer;
 		class Command {
+				friend class CommandComparer;
 			public:
 				typedef std::function<RunningCommand*(const Core::Collections::List<Core::String>)> Executable;
 
@@ -366,6 +368,12 @@ namespace DE {
 			protected:
 				Core::String _name;
 				Executable _exec;
+		};
+		class CommandComparer {
+			public:
+				inline static int Compare(const Command &lhs, const Command &rhs) {
+					return Core::DefaultComparer<Core::String>::Compare(lhs._name, rhs._name);
+				}
 		};
 
 		class SimpleRunningCommand : public RunningCommand {
@@ -413,14 +421,14 @@ namespace DE {
 					}
 				}
 
-				const Core::Collections::List<Command> &Commands() const {
+				const Core::Collections::SortedList<Command, CommandComparer> &Commands() const {
 					return _commands;
 				}
-				Core::Collections::List<Command> &Commands() {
+				Core::Collections::SortedList<Command, CommandComparer> &Commands() {
 					return _commands;
 				}
 			protected:
-				Core::Collections::List<Command> _commands;
+				Core::Collections::SortedList<Command, CommandComparer> _commands;
 				RunningCommand *_curCommand = nullptr;
 
 				virtual void OnCommand(const Core::String &str) override {
@@ -532,14 +540,23 @@ namespace DE {
 					_runner = nullptr;
 				}
 
-				const Graphics::TextRendering::Font *GetFont() const {
-					return _input.Text().Font;
-				}
-				void SetFont(const Graphics::TextRendering::Font *fnt) {
-					_input.Text().Font = fnt;
-					_input.SetSize(Size(0.0, fnt->GetHeight() + _input.Text().Padding.Height()));
-					_output.SetFont(fnt);
-					_output.SetMargins(Thickness(0.0, 0.0, 0.0, fnt->GetHeight()));
+				Core::GetSetProperty<const Graphics::TextRendering::Font*> Font {
+					[this](const Graphics::TextRendering::Font *fnt) {
+						_input.Text().Font = fnt;
+						_input.SetDesiredVisibleLine(1);
+						_output.SetFont(fnt);
+						_output.SetMargins(Thickness(0.0, 0.0, 0.0, _input.GetSize().Height));
+					},
+					[this]() {
+						return _input.Text().Font;
+					}
+				};
+
+				virtual void ResetForInput() {
+					_input.SetText(_TEXT(""));
+					if (GetWorld()) {
+						GetWorld()->SetFocus(&_input);
+					}
 				}
 
 				virtual void AutoSetWidth() {

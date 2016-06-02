@@ -856,7 +856,7 @@ class ControlTest : public Test {
 			rdOnly.FitText();
 			p.Children().Insert(rdOnly);
 
-			runner.Commands().PushBack(Command(_TEXT("help"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("help"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
 					runner.WriteLine(_TEXT("beer	prints the lyrics of the song \"99 bottles of beer\""));
 					runner.WriteLine(_TEXT("cls		clears the console screen"));
@@ -868,7 +868,7 @@ class ControlTest : public Test {
 					return 0;
 				});
 			}));
-			runner.Commands().PushBack(Command(_TEXT("beer"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("beer"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
 					for (int x = 99; x > 1; ) {
 						runner.WriteLine(ToString(x) + _TEXT(" bottles of beer on the wall, ") + ToString(x) + _TEXT(" bottles of beer."));
@@ -883,19 +883,19 @@ class ControlTest : public Test {
 					return 0;
 				});
 			}));
-			runner.Commands().PushBack(Command(_TEXT("cls"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("cls"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
 					runner.ClearConsole();
 					return 0;
 				});
 			}));
-			runner.Commands().PushBack(Command(_TEXT("bf"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("bf"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(RunningBFCommand))) RunningBFCommand(args, *this);
 			}));
-			runner.Commands().PushBack(Command(_TEXT("ball"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("ball"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(RunningBounceBallCommand))) RunningBounceBallCommand(args, runner);
 			}));
-			runner.Commands().PushBack(Command(_TEXT("gblur"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("gblur"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
 					if (args.Count() != 5) {
 						runner.WriteLine(_TEXT("Usage: gblur (file name) (x radius) (y radius) (output file name)"));
@@ -914,13 +914,13 @@ class ControlTest : public Test {
 					return 0;
 				});
 			}));
-			runner.Commands().PushBack(Command(_TEXT("exit"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("exit"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
 					stop = true;
 					return 0;
 				});
 			}));
-			runner.Commands().PushBack(Command(_TEXT("zip"), [&](const List<String> &args) {
+			runner.Commands().InsertLeft(Command(_TEXT("zip"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
 					if (args.Count() == 4) {
 						if (args[1] == _TEXT("z")) {

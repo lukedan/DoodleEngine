@@ -13,120 +13,130 @@ namespace DE {
 			if (form == nullptr) {
 				return DefWindowProc(hWnd, msg, wParam, lParam);
 			}
-			form->OnMessageReceived(MessageInfo(msg, wParam, lParam));
-			switch (msg) {
-				case WM_CLOSE: {
-					form->CloseButtonClicked(Info());
-					return 0;
-				}
-				case WM_SIZE: {
-					form->RelimitCursor();
-					form->SizeChanged(SizeChangeInfo(wParam, lParam));
-					return 0;
-				}
-				case WM_SETCURSOR: {
-					if (form->_cursorOverrideCount == 0) {
-						form->GetCursor().Set();
+			try {
+				form->OnMessageReceived(MessageInfo(msg, wParam, lParam));
+				switch (msg) {
+					case WM_CLOSE: {
+						form->CloseButtonClicked(Info());
+						return 0;
 					}
-					form->OnSetCursor(Info());
-					return true;
-				}
-				case WM_MOVING: {
-					form->RelimitCursor();
-					return 0;
-				}
-				case WM_MOVE: {
-					form->RelimitCursor(); // TODO need hooks?
-					return 0;
-				}
-
-				case WM_KEYDOWN: {
-					form->OnKeyDown(KeyInfo(wParam, lParam));
-					return 0;
-				}
-				case WM_KEYUP: {
-					form->OnKeyUp(KeyInfo(wParam, lParam));
-					return 0;
-				}
-				case WM_CHAR: {
-					form->OnText(TextInfo(wParam, lParam));
-					return 0;
-				}
-				case WM_GETDLGCODE: { //TODO: don't know if it's right
-					return DLGC_WANTALLKEYS;
-				}
-				case WM_IME_SETCONTEXT: { // same as above
-					return IME_CAND_READ;
-				}
-				case WM_IME_CHAR: {
-					form->OnText(TextInfo(wParam, lParam));
-					return 0;
-				}
-
-				case WM_MOUSEWHEEL: {
-					POINT p;
-					p.x = p.y = 0;
-					if (!ClientToScreen(hWnd, &p)) {
-						throw Core::SystemException(_TEXT("cannot convert between scopes"));
+					case WM_SIZE: {
+						form->RelimitCursor();
+						form->SizeChanged(SizeChangeInfo(wParam, lParam));
+						return 0;
 					}
-					form->OnMouseScroll(MouseScrollInfo(wParam, lParam, Math::Vector2(p.x, p.y)));
-					return 0;
-				}
+					case WM_SETCURSOR: {
+						if (form->_cursorOverrideCount == 0) {
+							form->GetCursor().Set();
+						}
+						form->OnSetCursor(Info());
+						return true;
+					}
+					case WM_MOVING: {
+						form->RelimitCursor();
+						return 0;
+					}
+					case WM_MOVE: {
+						form->RelimitCursor(); // TODO need hooks?
+						return 0;
+					}
 
-				case WM_MOUSEMOVE: {
-					form->OnMouseMove(MouseMoveInfo(wParam, lParam));
-					return 0;
-				}
-				case WM_MOUSELEAVE: {
-					form->_ting = false;
-					form->OnMouseLeave(Info());
-					return 0;
-				}
-				case WM_MOUSEHOVER: {
-					form->_ting = false;
-					form->OnMouseHover(MouseButtonInfo(wParam, lParam));
-					return 0;
-				}
+					case WM_KEYDOWN: {
+						form->OnKeyDown(KeyInfo(wParam, lParam));
+						return 0;
+					}
+					case WM_KEYUP: {
+						form->OnKeyUp(KeyInfo(wParam, lParam));
+						return 0;
+					}
+					case WM_CHAR: {
+						form->OnText(TextInfo(wParam, lParam));
+						return 0;
+					}
+					case WM_GETDLGCODE: { //TODO: don't know if it's right
+						return DLGC_WANTALLKEYS;
+					}
+					case WM_IME_SETCONTEXT: { // same as above
+						return IME_CAND_READ;
+					}
+					case WM_IME_CHAR: {
+						form->OnText(TextInfo(wParam, lParam));
+						return 0;
+					}
 
-				case WM_LBUTTONDOWN: {
-					form->OnMouseDown(MouseButtonInfo(wParam, lParam, MouseButton::Left, GetKeyState(VK_MENU) < 0));
-					return 0;
-				}
-				case WM_LBUTTONUP: {
-					form->OnMouseUp(MouseButtonInfo(wParam, lParam, MouseButton::Left, GetKeyState(VK_MENU) < 0));
-					return 0;
-				}
-				case WM_RBUTTONDOWN: {
-					form->OnMouseDown(MouseButtonInfo(wParam, lParam, MouseButton::Right, GetKeyState(VK_MENU) < 0));
-					return 0;
-				}
-				case WM_RBUTTONUP: {
-					form->OnMouseUp(MouseButtonInfo(wParam, lParam, MouseButton::Right, GetKeyState(VK_MENU) < 0));
-					return 0;
-				}
-				case WM_MBUTTONDOWN: {
-					form->OnMouseDown(MouseButtonInfo(wParam, lParam, MouseButton::Middle, GetKeyState(VK_MENU) < 0));
-					return 0;
-				}
-				case WM_MBUTTONUP: {
-					form->OnMouseUp(MouseButtonInfo(wParam, lParam, MouseButton::Middle, GetKeyState(VK_MENU) < 0));
-					return 0;
-				}
+					case WM_MOUSEWHEEL: {
+						POINT p;
+						p.x = p.y = 0;
+						if (!ClientToScreen(hWnd, &p)) {
+							throw Core::SystemException(_TEXT("cannot convert between scopes"));
+						}
+						form->OnMouseScroll(MouseScrollInfo(wParam, lParam, Math::Vector2(p.x, p.y)));
+						return 0;
+					}
 
-				case WM_SETFOCUS: {
-					form->RelimitCursor();
-					form->OnGotFocus(Info());
-					return 0;
-				}
-				case WM_KILLFOCUS: {
-					form->OnLostFocus(Info());
-					ClipCursor(nullptr);
-					return 0;
-				}
+					case WM_MOUSEMOVE: {
+						form->OnMouseMove(MouseMoveInfo(wParam, lParam));
+						return 0;
+					}
+					case WM_MOUSELEAVE: {
+						form->_ting = false;
+						form->OnMouseLeave(Info());
+						return 0;
+					}
+					case WM_MOUSEHOVER: {
+						form->_ting = false;
+						form->OnMouseHover(MouseButtonInfo(wParam, lParam));
+						return 0;
+					}
 
-				case WM_ERASEBKGND: {
-					return true;
+					case WM_LBUTTONDOWN: {
+						form->OnMouseDown(MouseButtonInfo(wParam, lParam, MouseButton::Left, GetKeyState(VK_MENU) < 0));
+						return 0;
+					}
+					case WM_LBUTTONUP: {
+						form->OnMouseUp(MouseButtonInfo(wParam, lParam, MouseButton::Left, GetKeyState(VK_MENU) < 0));
+						return 0;
+					}
+					case WM_RBUTTONDOWN: {
+						form->OnMouseDown(MouseButtonInfo(wParam, lParam, MouseButton::Right, GetKeyState(VK_MENU) < 0));
+						return 0;
+					}
+					case WM_RBUTTONUP: {
+						form->OnMouseUp(MouseButtonInfo(wParam, lParam, MouseButton::Right, GetKeyState(VK_MENU) < 0));
+						return 0;
+					}
+					case WM_MBUTTONDOWN: {
+						form->OnMouseDown(MouseButtonInfo(wParam, lParam, MouseButton::Middle, GetKeyState(VK_MENU) < 0));
+						return 0;
+					}
+					case WM_MBUTTONUP: {
+						form->OnMouseUp(MouseButtonInfo(wParam, lParam, MouseButton::Middle, GetKeyState(VK_MENU) < 0));
+						return 0;
+					}
+
+					case WM_SETFOCUS: {
+						form->RelimitCursor();
+						form->OnGotFocus(Info());
+						return 0;
+					}
+					case WM_KILLFOCUS: {
+						form->OnLostFocus(Info());
+						ClipCursor(nullptr);
+						return 0;
+					}
+
+					case WM_ERASEBKGND: {
+						return true;
+					}
 				}
+			} catch (const Exception &e) {
+				form->_hasEx = true;
+				form->_exMsg = e.Message();
+				return DefWindowProc(hWnd, msg, wParam, lParam);
+			} catch (const std::exception &e) {
+				form->_hasEx = true;
+				form->_exMsg = WidenString(e.what());
+				return DefWindowProc(hWnd, msg, wParam, lParam);
 			}
 			return DefWindowProc(hWnd, msg, wParam, lParam);
 		}
@@ -207,6 +217,10 @@ namespace DE {
 				if (_msg.message != WM_QUIT) {
 					TranslateMessage(&_msg);
 					DispatchMessage(&_msg);
+				}
+				if (_hasEx) {
+					_hasEx = false;
+					throw Exception(_TEXT("an error occurred during WndProc; see LastErrorMessage for more info"));
 				}
 			}
 		}

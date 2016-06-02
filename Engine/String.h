@@ -237,5 +237,20 @@ namespace DE {
 			std::basic_stringstream<Char> ss(*str);
 			return static_cast<bool>(ss>>res);
 		}
+
+		inline WideString WidenString(const AsciiString &str) {
+			WideString result;
+			for (size_t i = 0; i < str.Length(); ++i) {
+				result += std::use_facet<std::ctype<wchar_t>>(std::locale()).widen(str[i]);
+			}
+			return result;
+		}
+		inline AsciiString NarrowString(const WideString &str) {
+			AsciiString result;
+			for (size_t i = 0; i < str.Length(); ++i) {
+				result += std::use_facet<std::ctype<wchar_t>>(std::locale()).narrow(str[i], '?');
+			}
+			return result;
+		}
 	}
 }

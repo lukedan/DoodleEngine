@@ -129,6 +129,11 @@ namespace DE {
 				};
 				GetSetProperty<bool> IMEEnabled;
 				GetSetProperty<bool> CursorLimited;
+				GetSetProperty<DE::Core::String, PropertyType::ReadOnly> LastErrorMessage {
+					[this]() {
+						return _exMsg;
+					}
+				};
 
 				Event<SizeChangeInfo> SizeChanged;
 				Event<Info> CloseButtonClicked, OnSetCursor;
@@ -153,6 +158,8 @@ namespace DE {
 				bool _imeEnable = false;
 				TRACKMOUSEEVENT _tme;
 				bool _ting = true, _limCursor = false;
+				bool _hasEx = false;
+				String _exMsg;
 
 				void RelimitCursor();
 
