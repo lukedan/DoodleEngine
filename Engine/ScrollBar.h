@@ -39,7 +39,7 @@ namespace DE {
 				}
 
 				Core::Math::Vector2 GetPosition() const {
-					return Core::Math::Vector2(margin.Left, margin.Top);
+					return Core::Math::Vector2(_margin.Left, _margin.Top);
 				}
 				void SetPosition(const Core::Math::Vector2 &pos) {
 					SetMargins(Thickness(pos.X, pos.Y, 0.0, 0.0));
@@ -84,7 +84,7 @@ namespace DE {
 
 				virtual void FinishLayoutChange() override {
 					Control::FinishLayoutChange();
-					if (a != Anchor::TopLeft) {
+					if (_anchor != Anchor::TopLeft) {
 						throw Core::InvalidArgumentException(_TEXT("the DraggableControl must be anchored to top left"));
 					}
 				}

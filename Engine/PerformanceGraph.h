@@ -32,7 +32,7 @@ namespace DE {
 				constexpr static size_t FrameTimeID = 0, MemoryID = 1, MonitoredItemCount = 2, TimeID = MonitoredItemCount;
 				struct FrameRecord {
 					FrameRecord() = default;
-					FrameRecord(double time, double frameTime, size_t mem) : Values { frameTime, static_cast<double>(mem), time } {
+					FrameRecord(double time, double frameTime, size_t mem) : Values {frameTime, static_cast<double>(mem), time} {
 					}
 
 					double Values[MonitoredItemCount + 1];

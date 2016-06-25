@@ -10,15 +10,18 @@ namespace DE {
 				virtual ~ContentControl() {
 				}
 
-				Graphics::TextRendering::Text &Content() {
+				Graphics::TextRendering::BasicText &Content() {
 					return _content;
 				}
-				const Graphics::TextRendering::Text &Content() const {
+				const Graphics::TextRendering::BasicText &Content() const {
 					return _content;
 				}
 
-				virtual void FitText() {
+				virtual void FitContent() {
 					SetSize(_content.LayoutRectangle.TopLeft() + _content.GetSize() - _actualLayout.TopLeft());
+				}
+				virtual void FitContentHeight() {
+					SetSize(Size(_size.Width, _content.LayoutRectangle.Top + _content.GetSize().Y - _actualLayout.Top));
 				}
 
 				virtual void Render(Graphics::Renderer &r) override {
@@ -30,7 +33,7 @@ namespace DE {
 					_content.LayoutRectangle = _actualLayout;
 				}
 
-				Graphics::TextRendering::Text _content;
+				Graphics::TextRendering::BasicText _content;
 		};
 	}
 }

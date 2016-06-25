@@ -69,7 +69,7 @@ namespace DE {
 					return _threeState;
 				}
 
-				virtual void FitText() override {
+				virtual void FitContent() override {
 					Core::Math::Vector2 cSize = _content.GetSize();
 					if (_type == CheckBoxType::Box) {
 						SetSize(Size(cSize.X + _boxSize.Width, Core::Math::Max(cSize.Y, _boxSize.Height)));

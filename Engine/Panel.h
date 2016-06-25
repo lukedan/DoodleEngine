@@ -47,7 +47,7 @@ namespace DE {
 				virtual void Render(Graphics::Renderer &r) override {
 					Control::Render(r);
 					_col.ForEach([&](Control *c) {
-						if (c->vis == Visibility::Visible || c->vis == Visibility::Ghost) {
+						if (c->_vis == Visibility::Visible || c->_vis == Visibility::Ghost) {
 							c->BeginRendering(r);
 							c->Render(r);
 							c->EndRendering(r);
@@ -78,7 +78,7 @@ namespace DE {
 				}
 
 				virtual bool HitTest(const Core::Math::Vector2 &pos) const override {
-					if (vis == Visibility::Ignored || vis == Visibility::Ghost) {
+					if (_vis == Visibility::Ignored || _vis == Visibility::Ghost) {
 						return false;
 					}
 					if (_background || GetDefaultBackground()) {

@@ -20,12 +20,13 @@ namespace DE {
 		const double Control::FocusBorderWidth = 4.0;
 
 		Control::~Control() {
+			_disposing = true;
 			if (_world) {
 				if (_world->FocusedControl() == this) {
-					_world->SetFocus(nullptr);
+					_world->_focus = nullptr;
 				}
 				if (_world->GetChild() == this) {
-					_world->SetChild(nullptr);
+					_world->_child = nullptr;
 				}
 			}
 			if (_father) {
@@ -64,14 +65,14 @@ namespace DE {
 		}
 
 		void Control::AnchorTo(Anchor anc) {
-			if ((~(int)a) & (int)anc) {
-				a = (Anchor)((int)a | (int)anc);
+			if ((~(int)_anchor) & (int)anc) {
+				_anchor = (Anchor)((int)_anchor | (int)anc);
 				ResetLayout();
 			}
 		}
 		void Control::DeanchorFrom(Anchor anc) {
-			if ((int)a & (int)anc) {
-				a = (Anchor)((int)a & (~(int)anc));
+			if ((int)_anchor & (int)anc) {
+				_anchor = (Anchor)((int)_anchor & (~(int)anc));
 				ResetLayout();
 			}
 		}
@@ -107,10 +108,10 @@ namespace DE {
 			if (_world) {
 				const Rectangle &rect = (_father ? _father->_actualLayout : _world->GetBounds());
 				SolveArrangement(
-					(int)a & (int)Anchor::Top, (int)a & (int)Anchor::Bottom, rect.Height(),
-					margin.Top, margin.Bottom, size.Height,
-					actualMargin.Top, actualMargin.Bottom, actualSize.Height);
-				_actualLayout.Top = rect.Top + actualMargin.Top;
+					(int)_anchor & (int)Anchor::Top, (int)_anchor & (int)Anchor::Bottom, rect.Height(),
+					_margin.Top, _margin.Bottom, _size.Height,
+					_actualMargin.Top, _actualMargin.Bottom, actualSize.Height);
+				_actualLayout.Top = rect.Top + _actualMargin.Top;
 				_actualLayout.Bottom = _actualLayout.Top + actualSize.Height;
 			}
 		}
@@ -118,16 +119,16 @@ namespace DE {
 			if (_world) {
 				const Rectangle &rect = (_father ? _father->_actualLayout : _world->GetBounds());
 				SolveArrangement(
-					(int)a & (int)Anchor::Left, (int)a & (int)Anchor::Right, rect.Width(),
-					margin.Left, margin.Right, size.Width,
-					actualMargin.Left, actualMargin.Right, actualSize.Width);
-				_actualLayout.Left = rect.Left + actualMargin.Left;
+					(int)_anchor & (int)Anchor::Left, (int)_anchor & (int)Anchor::Right, rect.Width(),
+					_margin.Left, _margin.Right, _size.Width,
+					_actualMargin.Left, _actualMargin.Right, actualSize.Width);
+				_actualLayout.Left = rect.Left + _actualMargin.Left;
 				_actualLayout.Right = _actualLayout.Left + actualSize.Width;
 			}
 		}
 		void Control::ResetLayout() {
 			if (_world) {
-				if (_father && _father->OverrideChildrenLayout()) {
+				if (_father && (!_father->_disposing && _father->OverrideChildrenLayout())) {
 					_father->ResetChildrenLayout();
 				} else {
 					ResetVerticalLayout();

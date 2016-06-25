@@ -15,7 +15,6 @@ using namespace DE::Graphics::TextRendering;
 using namespace DE::Graphics::TextRendering::FreeTypeAccess;
 using namespace DE::Graphics::RenderingContexts;
 using namespace DE::UI;
-using namespace DE::Physics;
 using namespace DE::IO;
 using namespace DE::Utils;
 using namespace DE::Utils::LightCaster;
@@ -54,135 +53,6 @@ class Test {
 		bool stop = false;
 };
 
-class PolygonTest : public Test {
-	public:
-		PolygonTest() : Test() {
-			r = context.CreateRenderer();
-			Regen();
-			window.SizeChanged += [this](const SizeChangeInfo &info) {
-				Vector2 v = info.NewSize;
-				r.SetViewport(Math::Rectangle(v));
-				r.SetViewbox(Math::Rectangle(v));
-			};
-		}
-		~PolygonTest() {
-		}
-
-		virtual void Update(double dt) {
-			counter.Update(dt);
-			if (IsKeyDown(VK_SPACE)) {
-				Regen();
-			}
-			/*Vector2 v = window.GetRelativeMousePosition();
-
-			finR.Clear();
-			size_t count = 0;
-			const Vector2 direction(1.0, 0.0);
-			for (size_t i = 0; i < vecs.Count(); ++i) {
-				const Vector2 &anv = vecs[(i + 1) % vecs.Count()];
-				Vector2 realTempToFuck;
-				IntersectionType tmpt = RaySegmentIntersect(v, direction, vecs[i], anv, realTempToFuck);
-				Color c;
-				switch (tmpt) {
-					case IntersectionType::None: {
-						c = Color(255, 0, 0, 255);
-						break;
-					}
-					case IntersectionType::Full: {
-						c = Color(0, 255, 0, 255);
-						break;
-					}
-					case IntersectionType::Edge: {
-						c = Color(255, 255, 0, 255);
-						break;
-					}
-				}
-				finR.PushBack(Vertex(vecs[i], c));
-				finR.PushBack(Vertex(anv, c));
-				if (tmpt == IntersectionType::Full) {
-					++count;
-				} else if (tmpt == IntersectionType::Edge) {
-					double
-						x1 = Vector2::Cross(direction, vecs[(i + vecs.Count() - 1) % vecs.Count()] - v),
-						x2 = Vector2::Cross(direction, vecs[(i + 1) % vecs.Count()] - v);
-					if (x1 * x2 <= 0.0) {
-						++count;
-					}
-				}
-			}
-			type = (count % 2 == 1) ? IntersectionType::Full : IntersectionType::None;*/
-		}
-		virtual void Render() {
-			r.Begin();
-			/*r<<PointSize(20.0);
-			switch (type) {
-				case IntersectionType::None: {
-					r<<Color(255, 0, 0, 255);
-					break;
-				}
-				case IntersectionType::Full: {
-					r<<Color(0, 255, 0, 255);
-					break;
-				}
-				case IntersectionType::Edge: {
-					r<<Color(255, 255, 0, 255);
-					break;
-				}
-			}
-			r<<window.GetRelativeMousePosition();*/
-			r.DrawVertices(res, RenderMode::Points);
-			//r.SetLineWidth(1.0);
-			//r.DrawVertices(finR, RenderMode::Lines);
-			//r.DrawVertices(vxs, RenderMode::LineLoop);
-			r.End();
-		}
-	private:
-		FPSCounter counter;
-		Random ran;
-
-		List<Vector2> vecs;
-		//List<Vertex> finR;
-		//IntersectionType type = IntersectionType::None;
-		bool map[600][600];
-		List<Vertex> res;
-		void Regen() {
-			int part = ran.NextBetween(5, 20);
-			const double center = 300;
-
-			vecs.Clear();
-			//finR.Clear();
-			res.Clear();
-			double ang = Pi * 2 / part, cang = 0.0;
-			for (int i = 0; i < part; ++i) {
-				Vector2 v = Vector2(center, center) + Vector2(sin(cang), cos(cang)) * ran.NextBetween(center / 3, center);
-				v.X = round(v.X);
-				v.Y = round(v.Y);
-				vecs.PushBack(v);
-				cang += ang;
-			}
-			double time = Stopwatch::TimeInSeconds([&]() {
-				for (int y = 0; y < center * 2; ++y) {
-					for (int x = 0; x < center * 2; ++x) {
-						IntersectionType type = PolygonPointIntersection(vecs, Vector2(x, y));
-						switch (type) {
-							case IntersectionType::Edge: {
-								res.PushBack(Vertex(Vector2(x, y), Color(255, 255, 0, 255)));
-								break;
-							}
-							case IntersectionType::Full: {
-								res.PushBack(Vertex(Vector2(x, y), Color(0, 255, 0, 255)));
-								break;
-							}
-							case IntersectionType::None: {
-								break;
-							}
-						}
-					}
-				}
-			});
-			cout<<center * center * 4<<" QUERIES: "<<time<<"s\n";
-		}
-};
 class ControlTest : public Test {
 	public:
 		class RunningBFCommand : public RunningCommand {
@@ -664,22 +534,7 @@ class ControlTest : public Test {
 					}
 				}
 		};
-	protected:
-		size_t TestStringToSizeType(const String &str) {
-			size_t result = 0;
-			for (size_t i = 0; i < str.Length(); ++i) {
-				result = result * 10 + (str[i] - _TEXT('0'));
-			}
-			return result;
-		}
-		AsciiString TestWideStringToAsciiString(const String &str) {
-			AsciiString result;
-			for (size_t i = 0; i < str.Length(); ++i) {
-				result += (char)(str[i]);
-			}
-			return result;
-		}
-	public:
+
 		ControlTest() : Test() {
 			r = context.CreateRenderer();
 
@@ -695,7 +550,7 @@ class ControlTest : public Test {
 
 			FontFace textface("simsun.ttc", 15.0);
 			fnt = AutoFont(&context, textface);
-			FontFace consface("consolefont.ttf", 12.0);
+			FontFace consface("consolefont.ttf", 13.0);
 			consFnt = AutoFont(&context, consface);
 
 			//FileWriter writer(_TEXT("test.fnt"));
@@ -813,7 +668,7 @@ class ControlTest : public Test {
 //					consoleTB.WriteLine(_TEXT("not running"));
 //				}
 //			};
-			ckBox.FitText();
+			ckBox.FitContent();
 			p.Children().Insert(ckBox);
 
 			tstat.SetAnchor(Anchor::TopDock);
@@ -825,7 +680,7 @@ class ControlTest : public Test {
 				ckBox.Type = (info.NewState == CheckBoxState::Checked ? CheckBoxType::Button : CheckBoxType::Box);
 			};
 			tstat.Content().TextColor = Color(0, 0, 0, 255);
-			tstat.FitText();
+			tstat.FitContent();
 			p.Children().Insert(tstat);
 
 			tBox.Text().Font = &fnt;
@@ -838,6 +693,7 @@ class ControlTest : public Test {
 			tBox.SetMargins(Thickness(10.0));
 			tBoxCaret.PenColor() = Color(0, 0, 0, 255);
 			tBox.CaretPen() = &tBoxCaret;
+			tBox.WrapText = true;
 			p.Children().Insert(tBox);
 
 			rdOnly.SetAnchor(Anchor::TopLeft);
@@ -853,7 +709,7 @@ class ControlTest : public Test {
 				}
 			};
 			rdOnly.Content().TextColor = Color(0, 0, 0, 255);
-			rdOnly.FitText();
+			rdOnly.FitContent();
 			p.Children().Insert(rdOnly);
 
 			runner.Commands().InsertLeft(Command(_TEXT("help"), [&](const List<String> &args) {
@@ -908,9 +764,20 @@ class ControlTest : public Test {
 					rect.Width = bmp->GetWidth();
 					rect.Height = bmp->GetHeight();
 					bmp->LockBits(&rect, Gdiplus::ImageLockModeRead | Gdiplus::ImageLockModeWrite, PixelFormat32bppARGB, &data);
-					GdiPlusAccess::GaussianBlur(data, TestStringToSizeType(args[2]), TestStringToSizeType(args[3]));
+					GdiPlusAccess::GaussianBlur(data, Extract<size_t>(args[2]), Extract<size_t>(args[3]));
 					bmp->UnlockBits(&data);
 					GdiPlusAccess::SaveBitmap(*bmp, args[4], Gdiplus::ImageFormatBMP);
+					return 0;
+				});
+			}));
+			runner.Commands().InsertLeft(Command(_TEXT("sysinfo"), [&](const List<String> &args) {
+				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
+					runner.Write(
+						_TEXT("FPS:\t\t\t\t") + ToString(counter.GetFPS()) + _TEXT("\n")
+						_TEXT("Average FPS:\t\t") + ToString(counter.GetAverageFPS()) + _TEXT("\n")
+						_TEXT("Memory Usage:\t\t") + ToString(GlobalAllocator::UsedSize()) + _TEXT("\n")
+						_TEXT("Memory Allocated:\t") + ToString(GlobalAllocator::AllocatedSize()) + _TEXT("\n")
+					);
 					return 0;
 				});
 			}));
@@ -926,8 +793,8 @@ class ControlTest : public Test {
 						if (args[1] == _TEXT("z")) {
 							Zipper zp;
 							AsciiString
-								from = TestWideStringToAsciiString(args[2]),
-								to = TestWideStringToAsciiString(args[3]);
+								from = NarrowString(args[2]),
+								to = NarrowString(args[3]);
 							if (!FileAccess::Exists(from)) {
 								runner.WriteLineWithColor(_TEXT("file ") + args[2] + _TEXT(" does not exist"), Color(255, 0, 0, 255));
 								return -1;
@@ -952,8 +819,8 @@ class ControlTest : public Test {
 						} else if (args[1] == _TEXT("u")) {
 							Unzipper uzp;
 							AsciiString
-								from = TestWideStringToAsciiString(args[2]),
-								to = TestWideStringToAsciiString(args[3]);
+								from = NarrowString(args[2]),
+								to = NarrowString(args[3]);
 							if (!FileAccess::Exists(from)) {
 								runner.WriteLineWithColor(_TEXT("file ") + args[2] + _TEXT(" does not exist"), Color(255, 0, 0, 255));
 								return -1;
@@ -984,7 +851,7 @@ class ControlTest : public Test {
 
 			console.SetAnchor(Anchor::Top);
 			console.SetMargins(Thickness(10.0));
-			console.SetFont(&consFnt);
+			console.Font = &consFnt;
 			console.SetSize(Size(0.0, 500.0));
 			console.AutoSetWidth();
 			console.AttachRunner(runner);
@@ -1007,7 +874,7 @@ class ControlTest : public Test {
 			comBox.Content().Font = &fnt;
 			comBox.Content().Content = _TEXT("Please choose your option");
 			comBox.Content().TextColor = Color(0, 0, 0, 255);
-			comBox.FitText();
+			comBox.FitContent();
 			comBox.SetAnchor(Anchor::TopDock);
 			comBox.SetMargins(Thickness(10));
 			InsertComboBoxItem(_TEXT("the first one"));
@@ -1046,7 +913,7 @@ class ControlTest : public Test {
 			item->Content().Font = &fnt;
 			item->Content().Content = text;
 			item->Content().TextColor = Color(0, 0, 0, 255);
-			item->FitText();
+			item->FitContent();
 		}
 
 		virtual void Update(double dt) {
@@ -1063,7 +930,7 @@ class ControlTest : public Test {
 				"\n1234567890";
 			lbl.Content().Content = ss.str().c_str();
 			lbl.Content().Scale = sBar.GetValue();
-			lbl.FitText();
+			lbl.FitContent();
 
 			p.FitContent();
 
@@ -1099,279 +966,6 @@ class ControlTest : public Test {
 
 //		BMPFontGenerator gen;
 		AutoFont fnt, consFnt;
-};
-class PhysicsTest : public Test {
-	public:
-		PhysicsTest() : Test(), w(Vector2(0.0, 1000.0)) {
-			r = context.CreateRenderer();
-
-			w.Collide += [&](const CollideInfo &info) {
-//				colps.PushBack(info.GetPosition());
-			};
-
-			Segment *s = w.CreateSegment();
-			s->Node1() = Vector2(100, 100);
-			s->Node2() = Vector2(300, 100);
-
-			s = w.CreateSegment();
-			s->Node1() = Vector2(100, 100);
-			s->Node2() = Vector2(300, 300);
-
-			s = w.CreateSegment();
-			s->Node1() = Vector2(500, 100);
-			s->Node2() = Vector2(300, 300);
-
-			tarBdy = w.CreateParticleBody();
-			List<Vector2> nvs;
-			nvs.PushBack(Vector2(-10, -10));
-			nvs.PushBack(Vector2(10, -10));
-			nvs.PushBack(Vector2(10, 10));
-			nvs.PushBack(Vector2(-10, 10));
-			//nvs.PushBack(Vector2(0, 0));
-			//nvs.PushBack(Vector2(0, 10));
-			tarBdy->SetPositions(nvs);
-			//tarBdy->Restitution() = 0.8;
-
-			window.SizeChanged += [&](const SizeChangeInfo &info) {
-				Vector2 v = info.NewSize;
-				r.SetViewport(Math::Rectangle(v));
-				r.SetViewbox(Math::Rectangle(v));
-			};
-			window.MouseDown += [&](const MouseButtonInfo &info) {
-				tarBdy->SetPosition(info.Position);
-				tarBdy->SetSpeed(Vector2());
-			};
-		}
-		~PhysicsTest() {
-		}
-
-		void Update(double dt) {
-			w.Update(dt);
-		}
-		void Render() override {
-			r.Begin();
-			{
-				List<Vertex> vs;
-				r<<PointSize(5.0);
-				const List<ParticleBody*> &bds = w.ParticleBodies();
-				for (size_t i = 0; i < bds.Count(); ++i) {
-					const List<Vector2> &cBody = bds[i]->GetPositions();
-					Color c(bds[i]->Sleeping() ? 255 : 0, 255, 0, 255);
-					for (size_t j = 0; j < cBody.Count(); ++j) {
-						vs.PushBack(Vertex(cBody[j] + bds[i]->GetPosition(), c));
-					}
-					r.DrawVertices(vs, RenderMode::Points);
-					vs.PushBack(Vertex(cBody[0] + bds[i]->GetPosition(), c));
-					r.SetLineWidth(1.0);
-					r.DrawVertices(vs, RenderMode::LineStrip);
-					vs.Clear();
-				}
-				const List<Segment*> &sgs = w.Segments();
-				for (size_t i = 0; i < sgs.Count(); ++i) {
-					vs.PushBack(Vertex(sgs[i]->Node1(), Color(255, 255, 255, 255)));
-					vs.PushBack(Vertex(sgs[i]->Node2(), Color(255, 255, 255, 255)));
-				}
-				r.SetLineWidth(1.0);
-				r.DrawVertices(vs, RenderMode::Lines);
-				r<<PointSize(15.0);
-				r.DrawVertices(colps, RenderMode::Points);
-				colps.Clear();
-			}
-			r.End();
-		}
-	private:
-		Physics::World w;
-		ParticleBody *tarBdy;
-		List<Vertex> colps;
-};
-class TextTest : public Test {
-	public:
-		TextTest() : Test() {
-			Renderer r = context.CreateRenderer();
-
-			gen.FontFile = "simsun.ttc";
-			gen.TextureWidth = 300.0;
-			gen.TextureHeight = -1.0;
-			gen.BorderWidth = 1.0;
-			gen.Dictionary = _TEXT("`1234567890-=\\~!@#$%^&*()_+|qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM[];',./{}:\"<>? \n\t");
-			gen.FontSize = 20.0;
-			f = gen.Generate(r);
-			FileAccess writer("test.fnt", FileAccessType::NewWriteBinary);
-			f.Save(_TEXT("test"), writer);
-
-			txt.Font = &f;
-			txt.Content = _TEXT(
-				"It's hard to have strengh when there's nothing to eat\n"
-				"And it's hard to eat when you don't have the teeth\n"
-				"And how when you lose the one thing you love\n"
-				"There's nothing below, and there's nothing above\n"
-				"\n"
-				"Well I've been going through changes\n"
-				"I've been going through changes\n"
-				"I've been going through changes\n"
-				"With nothing at all\n"
-				"\n"
-				"It's hard to accept when you don't understand\n"
-				"And it's hard to launch without knowing how to land\n"
-				"And how when it burns you can't change a thing\n"
-				"Oh, you can soften the blow, but you can't stop the sting\n"
-				"\n"
-				"Well I've been going through changes\n"
-				"I've been going through changes\n"
-				"I've been going through changes\n"
-				"With nothing at all\n"
-				"Nothing at all\n"
-				"Nothing at all\n"
-				"\n"
-				"Well I'm still yours\n"
-				"Even if you're not mine\n"
-				"I stare at the floor\n"
-				"And I study the lines\n"
-				"Oh when I took my place in the back of the crowd\n"
-				"Baby, I couldn't see, but at least it was loud\n"
-				"At least it was loud\n"
-				"\n"
-				"And I've been going through changes\n"
-				"I've been going through changes\n"
-				"I've been going through changes\n"
-				"And I know that I needed changes\n"
-				"But I guess 'cause this is not painless\n"
-				"No, this is not painless\n"
-				"\n"
-				"With nothing at all\n"
-			);
-			txt.MaxWidth = 500.0;
-			txt.HorizontalAlignment = HorizontalTextAlignment::Left;
-			txt.UseClip = true;
-			txt.Clip = Math::Rectangle(100, 100, 500, 600);
-			txt.TextColor = Color(255, 255, 255, 255);
-
-			window.SizeChanged += [&](const SizeChangeInfo &info) {
-				Vector2 v = info.NewSize;
-				r.SetViewport(Math::Rectangle(v));
-				r.SetViewbox(Math::Rectangle(v));
-			};
-			window.MouseMove += [&](const MouseMoveInfo &info) {
-				txt.HitTest(info.Position, ss, caret);
-				// std::cout<<"OVER:"<<ss<<"\tCARET:"<<caret<<"\tLENGTH:"<<txt.Content.Length()<<std::endl;
-				ss = Min(txt.Content.Length() - 1, ss);
-				se = ss + 1;
-			};
-			window.KeyboardText += [&](const TextInfo &info) {
-				switch (info.GetChar()) {
-					case 'a': {
-						if (ss > 0) {
-							--ss;
-						}
-						break;
-					}
-					case 's': {
-						if (ss < se) {
-							++ss;
-						}
-						break;
-					}
-					case 'd': {
-						if (se > ss) {
-							--se;
-						}
-						break;
-					}
-					case 'f': {
-						if (se < txt.Content.Length() - 1) {
-							++se;
-						}
-						break;
-					}
-				}
-			};
-			window.MouseScroll += [&](const MouseScrollInfo &info) {
-				txt.Scale += info.Delta * 0.1;
-				ResetText();
-			};
-
-			_world.SetFather(&window);
-			_world.SetBounds(Math::Rectangle(window.ClientSize));
-
-			_pnl.SetAnchor(Anchor::All);
-			_pnl.SetMargins(Thickness(1.0));
-			_world.SetChild(&_pnl);
-
-			_scrollH.SetAnchor(Anchor::TopLeft);
-			_scrollH.SetMargins(Thickness(txt.Clip.Left, txt.Clip.Bottom, 0.0, 0.0));
-			_scrollH.SetLayoutDirection(LayoutDirection::Horizontal);
-			_scrollH.SetSize(Size(txt.Clip.Width(), 20.0));
-			_scrollH.Scroll += [&](const ScrollInfo &info) {
-				txt.LayoutRectangle.Left = txt.Clip.Left - info.GetNewValue();
-			};
-			_pnl.Children().Insert(_scrollH);
-
-			_scrollV.SetAnchor(Anchor::TopLeft);
-			_scrollV.SetMargins(Thickness(txt.Clip.Right, txt.Clip.Top, 0.0, 0.0));
-			_scrollV.SetLayoutDirection(LayoutDirection::Vertical);
-			_scrollV.SetSize(Size(20.0, txt.Clip.Height()));
-			_scrollV.Scroll += [&](const ScrollInfo &info) {
-				txt.LayoutRectangle.Top = txt.Clip.Top - info.GetNewValue();
-			};
-			_pnl.Children().Insert(_scrollV);
-
-			ResetText();
-		}
-
-		void Update(double dt) {
-			_world.Update(dt);
-		}
-		void Render() {
-			r.Begin();
-			_world.Render(r);
-			Math::Rectangle rect = txt.Clip;
-			List<Vertex> vxs;
-			vxs.PushBack(Vertex(rect.TopLeft(), Color(0, 200, 255, 255)));
-			vxs.PushBack(Vertex(rect.TopRight(), Color(0, 200, 255, 255)));
-			vxs.PushBack(Vertex(rect.BottomLeft(), Color(0, 200, 255, 255)));
-			vxs.PushBack(Vertex(rect.TopRight(), Color(0, 200, 255, 255)));
-			vxs.PushBack(Vertex(rect.BottomLeft(), Color(0, 200, 255, 255)));
-			vxs.PushBack(Vertex(rect.BottomRight(), Color(0, 200, 255, 255)));
-			r.DrawVertices(vxs, RenderMode::Triangles);
-			r<<txt;
-			Vector2 top = txt.GetCaretPosition(caret);
-			top += txt.LayoutRectangle.TopLeft();
-			vxs.Clear();
-			vxs.PushBack(Vertex(top, Color(255, 0, 0, 255)));
-			vxs.PushBack(Vertex(Vector2(top.X, top.Y + txt.Scale * txt.Font->GetHeight()), Color(255, 0, 0, 255)));
-			r.SetLineWidth(1.0);
-			r.DrawVertices(vxs, RenderMode::Lines);
-			txt.GetSelectionRegion(ss, se).ForEach([&](const Math::Rectangle &rect) {
-				SolidBrush(Color(255, 255, 255, 100)).FillRect(rect, r);
-				return true;
-			});
-			r.End();
-		}
-	private:
-		BMPFontGenerator gen;
-		BMPFont f;
-
-		UI::World _world;
-		Panel _pnl;
-		ScrollBarBase _scrollH, _scrollV;
-
-		size_t ss = 0, se = 0, caret = 0;
-		Text txt;
-
-		void ResetText() {
-			txt.CacheFormat();
-			Vector2 v = txt.GetSize();
-			_scrollH.SetValue(0.0);
-			_scrollH.SetMaxValue(Max(v.X, txt.Clip.Width()));
-			_scrollH.SetViewRange(txt.Clip.Width());
-			_scrollH.PageDelta() = _scrollH.GetMaxValue() * 0.2;
-			_scrollV.SetValue(0.0);
-			_scrollV.SetMaxValue(Max(v.Y, txt.Clip.Height()));
-			_scrollV.SetViewRange(txt.Clip.Height());
-			_scrollV.PageDelta() = _scrollV.GetMaxValue() * 0.2;
-			txt.LayoutRectangle.Top = txt.Clip.Top;
-			txt.LayoutRectangle.Left = txt.Clip.Left;
-		}
 };
 class LightTest : public Test {
 	public:
@@ -1792,228 +1386,12 @@ class LightTest : public Test {
 			return res;
 		}
 };
-class BezierTest : public Test {
-	public:
-		BezierTest() : Test() {
-			window.SizeChanged += [&](const SizeChangeInfo &info) {
-				Vector2 v = info.NewSize;
-				r.SetViewport(Math::Rectangle(v));
-				r.SetViewbox(Math::Rectangle(v));
-			};
-			window.KeyboardText += [&](const TextInfo &info) {
-			};
-		}
-		~BezierTest() {
-		}
-
-		void Update(double dt) override {
-			stat += dt / 2.0;
-			while (stat > 1.0) {
-				stat -= 1.0;
-			}
-			if (IsKeyDown(VK_F1)) {
-				bz.Node1() = window.GetRelativeMousePosition();
-			}
-			if (IsKeyDown(VK_F2)) {
-				bz.Node2() = window.GetRelativeMousePosition();
-			}
-			if (IsKeyDown(VK_F3)) {
-				bz.Control1() = window.GetRelativeMousePosition();
-			}
-			if (IsKeyDown(VK_F4)) {
-				bz.Control2() = window.GetRelativeMousePosition();
-			}
-		}
-		void Render() override {
-			r.Begin();
-			List<Vertex> vs;
-			vs.PushBack(Vertex(bz.Node1(), Color(255, 0, 0, 255)));
-			vs.PushBack(Vertex(bz.Control1(), Color(255, 0, 0, 255)));
-			vs.PushBack(Vertex(bz.Node2(), Color(255, 0, 0, 255)));
-			vs.PushBack(Vertex(bz.Control2(), Color(255, 0, 0, 255)));
-			r.SetLineWidth(1.0);
-			r.DrawVertices(vs, RenderMode::Lines);
-			vs.Clear();
-			List<Vector2> ns = bz.GetLine(100);
-			Vector2 vx = ns[0];
-			for (size_t i = 1; i < ns.Count(); ++i) {
-				vs.PushBack(Vertex(vx, Color(255, 255, 255, 255)));
-				vs.PushBack(Vertex(vx = ns[i], Color(255, 255, 255, 255)));
-			}
-			r.DrawVertices(vs, RenderMode::Lines);
-			vs.Clear();
-			vs.PushBack(Vertex(bz.Node1(), Color(255, 0, 0, 255)));
-			vs.PushBack(Vertex(bz.Node2(), Color(255, 0, 0, 255)));
-			vs.PushBack(Vertex(bz.Control1(), Color(255, 255, 0, 255)));
-			vs.PushBack(Vertex(bz.Control2(), Color(255, 255, 0, 255)));
-			vs.PushBack(Vertex(bz[stat], Color(255, 255, 255, 255)));
-			r<<PointSize(10.0);
-			r.DrawVertices(vs, RenderMode::Points);
-			r.End();
-		}
-	private:
-		double stat = 0.0;
-
-		Utils::Bezier bz;
-};
-class BlendTest : public Test {
-	public:
-		BlendTest() : Test() {
-			window.SizeChanged += [&](const SizeChangeInfo &info) {
-				Vector2 v = info.NewSize;
-				r.SetViewport(Math::Rectangle(v));
-				r.SetViewbox(Math::Rectangle(v));
-			};
-			window.KeyboardText += [&](const TextInfo &info) {
-			};
-		}
-		~BlendTest() {
-		}
-
-		void Update(double dt) override {
-		}
-		void Render() override {
-			r.Begin();
-			List<Vertex> vs;
-			Color sc(0, 0, 0, 255), se(255, 255, 255, 0);
-
-			List<Color> cs;
-
-			// Color::Blend
-			{
-				for (double i = 0.0; i <= 1.0; i += 0.05) {
-					cs.PushBack(Color::Blend(sc, 1.0 - i, se, i));
-				}
-				for (size_t i = 1; i < cs.Count(); ++i) {
-					vs.PushBack(Vertex(Vector2(100.0 + (i - 1) * 10, 100.0), cs[i - 1]));
-					vs.PushBack(Vertex(Vector2(100.0 + i * 10, 100.0), cs[i]));
-					vs.PushBack(Vertex(Vector2(100.0 + (i - 1) * 10, 150.0), cs[i - 1]));
-
-					vs.PushBack(Vertex(Vector2(100.0 + i * 10, 100.0), cs[i]));
-					vs.PushBack(Vertex(Vector2(100.0 + (i - 1) * 10, 150.0), cs[i - 1]));
-					vs.PushBack(Vertex(Vector2(100.0 + i * 10, 150.0), cs[i]));
-				}
-			}
-
-			// blend in OpenGL
-			{
-				vs.PushBack(Vertex(Vector2(100.0, 150.0), sc));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 150.0), se));
-				vs.PushBack(Vertex(Vector2(100.0, 200.0), sc));
-
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 150.0), se));
-				vs.PushBack(Vertex(Vector2(100.0, 200.0), sc));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 200.0), se));
-			}
-
-			// another blend in OpenGL (s1 first)
-			{
-				vs.PushBack(Vertex(Vector2(100.0, 200.0), sc));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 200.0), Color(sc.R, sc.G, sc.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0, 250.0), sc));
-
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 200.0), Color(sc.R, sc.G, sc.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0, 250.0), sc));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 250.0), Color(sc.R, sc.G, sc.B, 0)));
-
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 200.0), se));
-				vs.PushBack(Vertex(Vector2(100.0, 200.0), Color(se.R, se.G, se.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 250.0), se));
-
-				vs.PushBack(Vertex(Vector2(100.0, 200.0), Color(se.R, se.G, se.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 250.0), se));
-				vs.PushBack(Vertex(Vector2(100.0, 250.0), Color(se.R, se.G, se.B, 0)));
-			}
-
-			// another blend in OpenGL (s2 first)
-			{
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 250.0), se));
-				vs.PushBack(Vertex(Vector2(100.0, 250.0), Color(se.R, se.G, se.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 300.0), se));
-
-				vs.PushBack(Vertex(Vector2(100.0, 250.0), Color(se.R, se.G, se.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 300.0), se));
-				vs.PushBack(Vertex(Vector2(100.0, 300.0), Color(se.R, se.G, se.B, 0)));
-
-				vs.PushBack(Vertex(Vector2(100.0, 250.0), sc));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 250.0), Color(sc.R, sc.G, sc.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0, 300.0), sc));
-
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 250.0), Color(sc.R, sc.G, sc.B, 0)));
-				vs.PushBack(Vertex(Vector2(100.0, 300.0), sc));
-				vs.PushBack(Vertex(Vector2(100.0 + (cs.Count() - 1) * 10, 300.0), Color(sc.R, sc.G, sc.B, 0)));
-			}
-
-			r.DrawVertices(vs, RenderMode::Triangles);
-
-			r.End();
-		}
-	private:
-};
-class CutTest : public Test {
-	public:
-		constexpr static double Ratio = 1.0 / 4.0; // 0.3333 works, but not as good as 0.25
-
-		CutTest() : Test() {
-			window.SizeChanged += [&](const SizeChangeInfo &info) {
-				Vector2 v = info.NewSize;
-				r.SetViewport(Math::Rectangle(v));
-				r.SetViewbox(Math::Rectangle(v));
-			};
-			window.MouseDown += [&](const MouseButtonInfo &info) {
-				if (info.Button == MouseButton::Left) {
-					_poss.PushBack(info.Position);
-				}
-				if (info.Button == MouseButton::Right) {
-					List<Vector2> newPoss;
-					Vector2 last = _poss.Last();
-					_poss.ForEach([&](const Vector2 &vec) {
-						newPoss.PushBack(vec * Ratio + last * (1.0 - Ratio));
-						newPoss.PushBack(vec * (1.0 - Ratio) + last * Ratio);
-						last = vec;
-						return true;
-					});
-					_poss = newPoss;
-				}
-				if (info.Button == MouseButton::Middle) {
-					_poss.Clear();
-				}
-			};
-		}
-		~CutTest() {
-		}
-
-		virtual void Update(double) override {
-		}
-		virtual void Render() override {
-			r.Begin();
-			if (_poss.Count() > 0) {
-				List<Vertex> vxs;
-				Vector2 last = _poss.Last();
-				_poss.ForEach([&](const Vector2 &v) {
-					vxs.PushBack(Vertex(last, Color(0, 0, 255, 255)));
-					vxs.PushBack(Vertex(last = v, Color(0, 0, 255, 255)));
-					return true;
-				});
-				r.DrawVertices(vxs, RenderMode::Lines);
-			}
-			r.End();
-		}
-	private:
-		List<Vector2> _poss;
-};
 
 int main() {
 	{
 		try {
 //			LightTest pl;
 			ControlTest pl;
-//			TextTest pl;
-//			PhysicsTest pl;
-//			BezierTest pl;
-//			BlendTest pl;
-//			GrassTest pl;
-//			CutTest pl;
 			pl.Run();
 		} catch (Exception &e) {
 			ShowMessage(e.Message());

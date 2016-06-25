@@ -89,74 +89,46 @@ namespace DE {
 				virtual const Graphics::Brush *GetDefaultPressedBrush() const = 0;
 				virtual const Graphics::Brush *GetDefaultHoverBrush() const = 0;
 
-//				const Graphics::Brush *&NormalBrush() {
-//					if (!Initialized()) {
-//						Initialize();
-//					}
-//					return _freeBrush;
-//				}
-//				const Graphics::Brush *const &NormalBrush() const {
-//					if (!Initialized()) {
-//						Initialize();
-//					}
-//					return _freeBrush;
-//				}
-//				const Graphics::Brush *&PressedBrush() {
-//					if (!Initialized()) {
-//						Initialize();
-//					}
-//					return _downBrush;
-//				}
-//				const Graphics::Brush *const &PressedBrush() const {
-//					if (!Initialized()) {
-//						Initialize();
-//					}
-//					return _downBrush;
-//				}
-//				const Graphics::Brush *&HoverBrush() {
-//					if (!Initialized()) {
-//						Initialize();
-//					}
-//					return _mOverBrush;
-//				}
-//				const Graphics::Brush *const &HoverBrush() const {
-//					return _mOverBrush;
-//				}
-
 				Core::Event<Core::Info> Click;
 
 				Core::GetSetProperty<const Graphics::Brush*>
-					NormalBrush = Core::GetSetProperty<const Graphics::Brush*>([this](const Graphics::Brush *brush) {
-						if (!Initialized()) {
-							Initialize();
+					NormalBrush {
+						[this](const Graphics::Brush *brush) {
+							if (!Initialized()) {
+								Initialize();
+							}
+							_freeBrush = brush;
+						}, [this]() {
+							if (!Initialized()) {
+								Initialize();
+							}
+							return _freeBrush;
 						}
-						_freeBrush = brush;
-					}, [this]() {
-						if (!Initialized()) {
-							Initialize();
+					}, HoverBrush {
+						[this](const Graphics::Brush *brush) {
+							if (!Initialized()) {
+								Initialize();
+							}
+							_mOverBrush = brush;
+						}, [this]() {
+							if (!Initialized()) {
+								Initialize();
+							}
+							return _mOverBrush;
 						}
-						return _freeBrush;
-					}), HoverBrush = Core::GetSetProperty<const Graphics::Brush*>([this](const Graphics::Brush *brush) {
-						if (!Initialized()) {
-							Initialize();
+					}, PressedBrush {
+						[this](const Graphics::Brush *brush) {
+							if (!Initialized()) {
+								Initialize();
+							}
+							_downBrush = brush;
+						}, [this]() {
+							if (!Initialized()) {
+								Initialize();
+							}
+							return _downBrush;
 						}
-						_mOverBrush = brush;
-					}, [this]() {
-						if (!Initialized()) {
-							Initialize();
-						}
-						return _mOverBrush;
-					}), PressedBrush = Core::GetSetProperty<const Graphics::Brush*>([this](const Graphics::Brush *brush) {
-						if (!Initialized()) {
-							Initialize();
-						}
-						_downBrush = brush;
-					}, [this]() {
-						if (!Initialized()) {
-							Initialize();
-						}
-						return _downBrush;
-					});
+					};
 				Core::GetSetProperty<ButtonClickMode> ClickMode = Core::GetSetProperty<ButtonClickMode>(
 					[this](ButtonClickMode c) {
 						_mode = c;

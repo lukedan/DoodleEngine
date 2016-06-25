@@ -37,14 +37,14 @@ namespace DE {
 							_father._pnl.FitContent();
 						}
 
-						Graphics::TextRendering::Text &Content() {
+						Graphics::TextRendering::BasicText &Content() {
 							return _btn.Content();
 						}
-						const Graphics::TextRendering::Text &Content() const {
+						const Graphics::TextRendering::BasicText &Content() const {
 							return _btn.Content();
 						}
 
-						void FitText() {
+						void FitContent() {
 							_btn.SetSize(Size(_father._box.GetSize().Width, _btn.Content().GetSize().Y));
 							_father._pnl.FitContent();
 						}

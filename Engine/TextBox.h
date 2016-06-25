@@ -25,16 +25,19 @@ namespace DE {
 				TextBox() {
 					_lbl.SetCursor(Core::Input::Cursor(Core::Input::DefaultCursorType::IBeam));
 				}
+				~TextBox() {
+					_disposing = true;
+				}
 
-				Graphics::TextRendering::Text &Text() {
+				Graphics::TextRendering::BasicText &Text() {
 					return _lbl.Content();
 				}
-				const Graphics::TextRendering::Text &Text() const {
+				const Graphics::TextRendering::BasicText &Text() const {
 					return _lbl.Content();
 				}
 				void SetText(const Core::String &text) {
 					_lbl.Content().Content = text;
-					_lbl.FitText();
+					_lbl.FitContent();
 					SetCaretPositionInfo(0, CaretMoveType::SetBaseLineAndCancelSelection);
 					MakePointInView(Core::Math::Vector2());
 					OnTextChanged(Core::Info());
@@ -93,31 +96,6 @@ namespace DE {
 					return &DefaultTextBoxBorder;
 				}
 
-				virtual bool IsMultiLine() const {
-					return _multiLine;
-				}
-				virtual void SetMultiLine(bool v) {
-					_multiLine = v;
-					if (!_multiLine) {
-						size_t tarC = _caret;
-						Core::String newContent = _TEXT("");
-						for (size_t i = 0; i < _lbl.Content().Content.Length(); ++i) {
-							TCHAR curChar = _lbl.Content().Content[i];
-							if (curChar == _TEXT('\n')) {
-								if (tarC > i) {
-									--tarC;
-								}
-							} else {
-								newContent += curChar;
-							}
-						}
-						_lbl.Content().Content = newContent;
-						_lbl.FitText();
-						SetCaretPositionInfo(tarC, CaretMoveType::SetBaseLineAndCancelSelection);
-						OnTextChanged(Core::Info());
-					}
-				}
-
 				virtual void SetDesiredVisibleLine(size_t lines) {
 					SetSize(Size(GetSize().Width, _lbl.Content().Padding.Height() + lines * _lbl.Content().Font->GetHeight()));
 				}
@@ -126,13 +104,60 @@ namespace DE {
 				using ScrollViewBase::SetVerticalScrollBarVisibility;
 
 				Core::Event<Core::Info> TextChanged;
+
+				Core::GetSetProperty<bool> MultiLine {
+					[this](bool v) {
+						_multiLine = v;
+						if (!_multiLine) {
+							size_t tarC = _caret;
+							Core::String newContent = _TEXT("");
+							for (size_t i = 0; i < _lbl.Content().Content.Length(); ++i) {
+								TCHAR curChar = _lbl.Content().Content[i];
+								if (curChar == _TEXT('\n')) {
+									if (tarC > i) {
+										--tarC;
+									}
+								} else {
+									newContent += curChar;
+								}
+							}
+							_lbl.Content().Content = newContent;
+							_lbl.FitContent();
+							SetCaretPositionInfo(tarC, CaretMoveType::SetBaseLineAndCancelSelection);
+							OnTextChanged(Core::Info());
+						}
+					}, [this]() {
+						return _multiLine;
+					}
+				};
+				Core::GetSetProperty<bool> WrapText { // TODO implement automatic content fitting for ScrollView
+					[this](bool v) {
+						if (_wrapText != v) {
+							_wrapText = v;
+							if (!_wrapText) {
+								_lbl.Content().WrapType = Graphics::TextRendering::LineWrapType::NoWrap;
+								_lbl.FitContent();
+							} else {
+								_lbl.Content().WrapType = Graphics::TextRendering::LineWrapType::WrapWordsNoOverflow;
+							}
+							ResetLayout();
+						}
+					},
+					[this]() {
+						return _wrapText;
+					}
+				};
 			protected:
+				class LabelWrapper : public Label {
+					friend class TextBox;
+				};
+
 				size_t _caret = 0, _selectS = 0, _selectE = 0;
-				Label _lbl;
+				LabelWrapper _lbl;
 				const Graphics::Pen *_caretPen = nullptr;
 				const Graphics::Brush *_selectionBrush = nullptr;
 				double _blink = 0.0, _period = DefaultCursorPeriod, _cbase = 0.0;
-				bool _selecting = false, _readOnly = false, _insert = true, _multiLine = true;
+				bool _selecting = false, _readOnly = false, _insert = true, _multiLine = true, _wrapText = false;
 
 				CaretMoveType GetMoveTypeWithShift(bool setBaseLine) const {
 					return (CaretMoveType)(
@@ -179,15 +204,17 @@ namespace DE {
 					if (_lbl.Content().Font) {
 						if (Focused() && _blink < _period * 0.5) {
 							Core::Collections::List<Core::Math::Vector2> caret;
-							Core::Math::Vector2 delta;
-							double dy = _lbl.Content().Font->GetHeight() * _lbl.Content().Scale;
-							caret.PushBack(_lbl.Content().GetCaretPosition(_caret) + Core::Math::Vector2(0.0, dy));
+							Core::Math::Vector2 pos;
+							double dy;
+							_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, pos, dy);
+							pos.Y += dy;
+							caret.PushBack(pos);
 							if (_insert) {
-								delta.Y = -dy;
+								pos.Y -= dy;
 							} else {
-								delta.X = GetOverwriteModeCaretWidth();
+								pos.X += GetOverwriteModeCaretWidth();
 							}
-							caret.PushBack(caret.First() + delta);
+							caret.PushBack(pos);
 							if (_caretPen) {
 								_caretPen->DrawLines(caret, r);
 							} else {
@@ -215,6 +242,23 @@ namespace DE {
 					return rawResult * _lbl.Content().Scale;
 				}
 
+				void ResetChildrenLayout() override { // FIXME says 'pure virtual function called' when _wrapText set to true
+					if (!_ssbs) {
+						if (_wrapText) { // make sure the width of the label doesn't exceed the width of visible area
+							if (GetWorld()) {
+								_lbl.Content().LayoutRectangle = _actualLayout;
+								double y = _lbl.Content().GetSize().Y;
+								if (y > _actualLayout.Height()) {
+									_lbl.Content().LayoutRectangle.Right -= _vert.GetSize().Width;
+									y = _lbl.Content().GetSize().Y;
+								}
+								_lbl._size = Size(_lbl.Content().LayoutRectangle.Width(), y);
+							}
+						}
+						ScrollViewBase::ResetChildrenLayout();
+					}
+				}
+
 				virtual bool DeleteSelectedBlock() {
 					if (_readOnly || _selectS == _selectE) {
 						return false;
@@ -224,7 +268,7 @@ namespace DE {
 						Core::Math::Swap(rrs, rre);
 					}
 					_lbl.Content().Content.Remove(rrs, rre - rrs);
-					_lbl.FitText();
+					_lbl.FitContent();
 					SetCaretPositionInfo(rrs, CaretMoveType::SetBaseLineAndCancelSelection);
 					OnTextChanged(Core::Info());
 					return true;
@@ -247,12 +291,9 @@ namespace DE {
 								_selecting = true;
 								break;
 							}
-							case Core::Input::MouseButton::Right: {
-								// nothing to do
-								break;
-							}
+							case Core::Input::MouseButton::Right:
 							case Core::Input::MouseButton::Middle: {
-								// nothing to do either, just to disable the stupid errors
+								// nothing to do, just to disable the stupid warnings
 								break;
 							}
 						}
@@ -284,29 +325,19 @@ namespace DE {
 						}
 						case VK_UP: {
 							if (_lbl.Content().Font) {
-								Core::Math::Vector2 cpos = _lbl.Content().GetRelativeCaretPosition(_caret);
-								cpos.Y -= _lbl.Content().Font->GetHeight() * _lbl.Content().Scale * 0.5;
-								if (cpos.Y > 0.0) {
-									cpos.X = _cbase;
-									SetCaretPositionInfo(
-										_lbl.Content().HitTestForCaret(cpos + _lbl.Content().LayoutRectangle.TopLeft()),
-										GetMoveTypeWithShift(false)
-									);
-								}
+								SetCaretPositionInfo(
+									_lbl.Content().CaretLineUp(_caret, _cbase + _lbl.Content().LayoutRectangle.Left),
+									GetMoveTypeWithShift(false)
+								);
 							}
 							break;
 						}
 						case VK_DOWN: {
 							if (_lbl.Content().Font) {
-								Core::Math::Vector2 cpos = _lbl.Content().GetRelativeCaretPosition(_caret);
-								cpos.Y += _lbl.Content().Font->GetHeight() * _lbl.Content().Scale * 1.5;
-								if (cpos.Y < _lbl.Content().GetSize().Y) {
-									cpos.X = _cbase;
-									SetCaretPositionInfo(
-										_lbl.Content().HitTestForCaret(cpos + _lbl.Content().LayoutRectangle.TopLeft()),
-										GetMoveTypeWithShift(false)
-									);
-								}
+								SetCaretPositionInfo(
+									_lbl.Content().CaretLineDown(_caret, _cbase + _lbl.Content().LayoutRectangle.Left),
+									GetMoveTypeWithShift(false)
+								);
 							}
 							break;
 						}
@@ -314,7 +345,7 @@ namespace DE {
 							if (!DeleteSelectedBlock() && !_readOnly) {
 								if (_caret < _lbl.Content().Content.Length()) {
 									_lbl.Content().Content.Remove(_caret);
-									_lbl.FitText();
+									_lbl.FitContent();
 									SetCaretPositionInfo(_caret, CaretMoveType::SetBaseLineAndCancelSelection);
 									OnTextChanged(Core::Info());
 								}
@@ -325,7 +356,7 @@ namespace DE {
 							_insert = !_insert;
 							break;
 						}
-						// TODO pageup and pagedown not found
+						// TODO VK_PRIOR(pageup) and VK_NEXT(pagedown)
 						case VK_HOME: {
 							if (_caret == 0) {
 								break;
@@ -356,6 +387,12 @@ namespace DE {
 								_lbl.Content().Content.Length() :
 								_lbl.Content().FormatCache.LineBreaks[targetID]
 							);
+							if (
+								targetPos < _lbl.Content().Content.Length() &&
+								_lbl.Content().Content[targetPos] != _TEXT('\n')
+							) {
+								++targetPos;
+							}
 							SetCaretPositionInfo(targetPos, GetMoveTypeWithShift(true));
 							break;
 						}
@@ -411,7 +448,7 @@ namespace DE {
 						}
 					}
 					if (changed) {
-						_lbl.FitText();
+						_lbl.FitContent();
 						SetCaretPositionInfo(target, CaretMoveType::SetBaseLineAndCancelSelection);
 						OnTextChanged(Core::Info());
 					}

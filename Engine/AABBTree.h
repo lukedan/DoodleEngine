@@ -232,7 +232,6 @@ namespace DE {
 								cur->_maxDep = Math::Max(cur->Left->_maxDep, cur->Right->_maxDep) + 1;
 							}
 						}
-						Validate(_root);
 					}
 					void RotateLeft(AABBNode *rt) {
 						if (rt == nullptr || rt->Right == nullptr) {

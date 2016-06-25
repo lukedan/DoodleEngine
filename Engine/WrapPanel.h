@@ -43,16 +43,16 @@ namespace DE {
 					if (_ldir == LayoutDirection::Horizontal) {
 						double totO = _actualLayout.Left;
 						_col.ForEach([&](Control *c) {
-							if (c->vis == Visibility::Ignored) {
+							if (c->_vis == Visibility::Ignored) {
 								return true;
 							}
 							c->ResetVerticalLayout();
-							c->actualSize.Width = c->size.Width;
-							c->_actualLayout.Left = c->actualMargin.Left = (totO += c->margin.Left);
-							totO += c->size.Width;
-							c->actualMargin.Right = _actualLayout.Width() - totO;
+							c->actualSize.Width = c->_size.Width;
+							c->_actualLayout.Left = c->_actualMargin.Left = (totO += c->_margin.Left);
+							totO += c->_size.Width;
+							c->_actualMargin.Right = _actualLayout.Width() - totO;
 							c->_actualLayout.Right = totO;
-							totO += c->margin.Right;
+							totO += c->_margin.Right;
 							c->_relPos += c->topLeft;
 							c->topLeft = c->_actualLayout.TopLeft();
 							c->_relPos -= c->topLeft;
@@ -62,16 +62,16 @@ namespace DE {
 					} else {
 						double totO = _actualLayout.Top;
 						_col.ForEach([&](Control *c) {
-							if (c->vis == Visibility::Ignored) {
+							if (c->_vis == Visibility::Ignored) {
 								return true;
 							}
 							c->ResetHorizontalLayout();
-							c->actualSize.Height = c->size.Height;
-							c->_actualLayout.Top = c->actualMargin.Top = (totO += c->margin.Top);
-							totO += c->size.Height;
-							c->actualMargin.Bottom = _actualLayout.Height() - totO;
+							c->actualSize.Height = c->_size.Height;
+							c->_actualLayout.Top = c->_actualMargin.Top = (totO += c->_margin.Top);
+							totO += c->_size.Height;
+							c->_actualMargin.Bottom = _actualLayout.Height() - totO;
 							c->_actualLayout.Bottom = totO;
-							totO += c->margin.Bottom;
+							totO += c->_margin.Bottom;
 							c->_relPos += c->topLeft;
 							c->topLeft = c->_actualLayout.TopLeft();
 							c->_relPos -= c->topLeft;
@@ -84,18 +84,18 @@ namespace DE {
 					double totS = 0.0;
 					if (_ldir == LayoutDirection::Horizontal) {
 						_col.ForEach([&](const Control *c) {
-							if (c->vis == Visibility::Ignored) {
+							if (c->_vis == Visibility::Ignored) {
 								return true;
 							}
-							totS += c->margin.Left + c->size.Width + c->margin.Right;
+							totS += c->_margin.Left + c->_size.Width + c->_margin.Right;
 							return true;
 						});
 					} else {
 						_col.ForEach([&](const Control *c) {
-							if (c->vis == Visibility::Ignored) {
+							if (c->_vis == Visibility::Ignored) {
 								return true;
 							}
-							totS += c->margin.Top + c->size.Height + c->margin.Bottom;
+							totS += c->_margin.Top + c->_size.Height + c->_margin.Bottom;
 							return true;
 						});
 					}

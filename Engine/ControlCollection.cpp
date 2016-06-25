@@ -19,14 +19,16 @@ namespace DE {
 			if (con._father != nullptr) {
 				throw InvalidOperationException(_TEXT("the control is already a child of another panel"));
 			}
-			con.zIndex = 0;
+			con._zIndex = 0;
 			con.SetWorld(_world);
 			con._father = _father;
 			_cons.InsertRight(&con);
 			if (_world) {
 				con.ResetLayout();
 			}
-			_father->OnChildrenChanged(CollectionChangeInfo<Control*>(&con, ChangeType::Add));
+			if (!_father->_disposing) {
+				_father->OnChildrenChanged(CollectionChangeInfo<Control*>(&con, ChangeType::Add));
+			}
 		}
 		void ControlCollection::Delete(Control &con) {
 			if (con._father != _father) {
@@ -38,9 +40,13 @@ namespace DE {
 				throw InvalidOperationException(_TEXT("control not found in the table"));
 			}
 			if (_world) {
-				_father->ResetChildrenLayout();
+				if (!_father->_disposing) {
+					_father->ResetChildrenLayout();
+				}
 			}
-			_father->OnChildrenChanged(CollectionChangeInfo<Control*>(&con, ChangeType::Remove));
+			if (!_father->_disposing) {
+				_father->OnChildrenChanged(CollectionChangeInfo<Control*>(&con, ChangeType::Remove));
+			}
 		}
 		void ControlCollection::SetZIndex(Control &con, int zIndex) {
 			if (con._father != _father) {
@@ -49,12 +55,14 @@ namespace DE {
 			if (!_cons.Delete<Core::EqualityPredicate<Control*>>(&con)) {
 				throw InvalidOperationException(_TEXT("control not found in the table"));
 			}
-			con.zIndex = zIndex;
+			con._zIndex = zIndex;
 			_cons.InsertRight(&con);
 			if (_world) {
 				con.ResetLayout();
 			}
-			_father->OnChildrenChanged(CollectionChangeInfo<Control*>(&con, ChangeType::Modify));
+			if (!_father->_disposing) {
+				_father->OnChildrenChanged(CollectionChangeInfo<Control*>(&con, ChangeType::Modify));
+			}
 		}
 	}
 }
