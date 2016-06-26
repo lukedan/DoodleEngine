@@ -14,7 +14,8 @@ namespace DE {
             public:
 				PanelBase() : Control(), _col(this) {
 				}
-				virtual ~PanelBase() {
+				~PanelBase() {
+					_disposing = true;
 				}
 
 				bool OverrideChildrenLayout() const {
@@ -197,9 +198,6 @@ namespace DE {
 		class Panel : public PanelBase {
 				friend class World;
 			public:
-				virtual ~Panel() {
-				}
-
 				ControlCollection &Children() {
 					return _col;
 				}

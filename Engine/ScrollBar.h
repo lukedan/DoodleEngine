@@ -35,8 +35,6 @@ namespace DE {
 					SetAnchor(Anchor::TopLeft);
 					SetMargins(Thickness());
 				}
-				virtual ~DraggableControlBase() {
-				}
 
 				Core::Math::Vector2 GetPosition() const {
 					return Core::Math::Vector2(_margin.Left, _margin.Top);
@@ -141,9 +139,6 @@ namespace DE {
 		class SimpleScrollBarButton : public DraggableControlBase {
 				friend class World;
 			public:
-				virtual ~SimpleScrollBarButton() {
-				}
-
 				const Graphics::Brush *&NormalBrush() {
 					return freeBrush;
 				}

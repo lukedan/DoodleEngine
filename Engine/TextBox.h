@@ -58,15 +58,16 @@ namespace DE {
 				}
 
 				virtual void MakeCaretInView() {
-					if (_lbl.Content().Font) {
-						Core::Math::Vector2 caret = _lbl.Content().GetRelativeCaretPosition(_caret);
-						MakePointInView(caret + Core::Math::Vector2(0.0, _lbl.Content().Font->GetHeight() * _lbl.Content().Scale));
-						MakePointInView(caret);
-						if (!_insert) {
-							MakePointInView(caret + Core::Math::Vector2(GetOverwriteModeCaretWidth(), 0.0));
-						}
-						_blink = 0.0;
+					Core::Math::Vector2 caret;
+					double h;
+					_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, caret, h);
+					caret -= _lbl.Content().LayoutRectangle.TopLeft();
+					MakePointInView(caret + Core::Math::Vector2(0.0, h));
+					MakePointInView(caret);
+					if (!_insert) {
+						MakePointInView(caret + Core::Math::Vector2(GetOverwriteModeCaretWidth(), 0.0));
 					}
+					_blink = 0.0;
 				}
 				virtual void MoveCaret(size_t newPosition) {
 					if (newPosition > _lbl.Content().Content.Length()) {
@@ -171,10 +172,10 @@ namespace DE {
 					SetChild(&_lbl);
 				}
 
-				virtual void SetCaretPositionInfo(size_t newPosition, CaretMoveType type) {
+				virtual void SetCaretPositionInfo(size_t newPosition, CaretMoveType type, double baseline) {
 					_caret = newPosition;
 					if ((int)type & (int)CaretMoveType::SetBaseLine) {
-						_cbase = _lbl.Content().GetRelativeCaretPosition(_caret).X;
+						_cbase = baseline;
 					}
 					if ((int)type & (int)CaretMoveType::CancelSelection) {
 						_selectS = _selectE = _caret;
@@ -183,6 +184,10 @@ namespace DE {
 					}
 					MakeCaretInView();
 				}
+				virtual void SetCaretPositionInfo(size_t newPosition, CaretMoveType type) {
+					SetCaretPositionInfo(newPosition, type, _lbl.Content().GetRelativeCaretPosition(newPosition).X);
+				}
+
 				virtual void Update(double dt) override {
 					ScrollViewBase::Update(dt);
 					_blink += dt;
@@ -191,7 +196,9 @@ namespace DE {
 					}
 					if (_selecting) {
 						if (GetWorld()) {
-							size_t caretP = _lbl.Content().HitTestForCaret(GetWorld()->GetRelativeMousePosition() + GetWorld()->GetBounds().TopLeft());
+							size_t caretP = _lbl.Content().HitTestForCaret(
+								GetWorld()->GetRelativeMousePosition() + GetWorld()->GetBounds().TopLeft()
+							);
 							SetCaretPositionInfo(caretP, CaretMoveType::SetBaseLineAndExtendSelection);
 						}
 						if (!Core::IsKeyDown(VK_LBUTTON)) {
@@ -201,36 +208,34 @@ namespace DE {
 				}
 				virtual void RenderChild(Graphics::Renderer &r, Control *c) override {
 					ScrollViewBase::RenderChild(r, c);
-					if (_lbl.Content().Font) {
-						if (Focused() && _blink < _period * 0.5) {
-							Core::Collections::List<Core::Math::Vector2> caret;
-							Core::Math::Vector2 pos;
-							double dy;
-							_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, pos, dy);
-							pos.Y += dy;
-							caret.PushBack(pos);
-							if (_insert) {
-								pos.Y -= dy;
-							} else {
-								pos.X += GetOverwriteModeCaretWidth();
-							}
-							caret.PushBack(pos);
-							if (_caretPen) {
-								_caretPen->DrawLines(caret, r);
-							} else {
-								DefaultCaretPen.DrawLines(caret, r);
-							}
+					if (Focused() && _blink < _period * 0.5) {
+						Core::Collections::List<Core::Math::Vector2> caret;
+						Core::Math::Vector2 pos;
+						double dy;
+						_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, pos, dy);
+						pos.Y += dy;
+						caret.PushBack(pos);
+						if (_insert) {
+							pos.Y -= dy;
+						} else {
+							pos.X += GetOverwriteModeCaretWidth();
 						}
-						size_t rss = _selectS, rse = _selectE;
-						if (rss > rse) {
-							Core::Math::Swap(rss, rse);
+						caret.PushBack(pos);
+						if (_caretPen) {
+							_caretPen->DrawLines(caret, r);
+						} else {
+							DefaultCaretPen.DrawLines(caret, r);
 						}
-						const Graphics::Brush *brush = (_selectionBrush ? _selectionBrush : &DefaultSelectionBrush);
-						_lbl.Content().GetSelectionRegion(rss, rse).ForEach([&](const Core::Math::Rectangle &rect) {
-							brush->FillRect(rect, r);
-							return true;
-						});
 					}
+					size_t rss = _selectS, rse = _selectE;
+					if (rss > rse) {
+						Core::Math::Swap(rss, rse);
+					}
+					const Graphics::Brush *brush = (_selectionBrush ? _selectionBrush : &DefaultSelectionBrush);
+					_lbl.Content().GetSelectionRegion(rss, rse).ForEach([&](const Core::Math::Rectangle &rect) {
+						brush->FillRect(rect, r);
+						return true;
+					});
 				}
 				double GetOverwriteModeCaretWidth() const {
 					double rawResult;
@@ -249,7 +254,7 @@ namespace DE {
 								_lbl.Content().LayoutRectangle = _actualLayout;
 								double y = _lbl.Content().GetSize().Y;
 								if (y > _actualLayout.Height()) {
-									_lbl.Content().LayoutRectangle.Right -= _vert.GetSize().Width;
+									_lbl.Content().LayoutRectangle.Right -= _vert.GetActualSize().Width;
 									y = _lbl.Content().GetSize().Y;
 								}
 								_lbl._size = Size(_lbl.Content().LayoutRectangle.Width(), y);
@@ -324,21 +329,27 @@ namespace DE {
 							break;
 						}
 						case VK_UP: {
-							if (_lbl.Content().Font) {
-								SetCaretPositionInfo(
-									_lbl.Content().CaretLineUp(_caret, _cbase + _lbl.Content().LayoutRectangle.Left),
-									GetMoveTypeWithShift(false)
-								);
+							size_t line = _lbl.Content().GetLineOfCaret(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+							if (line == 0) {
+								break;
 							}
+							Core::Math::Vector2 pos(
+								_cbase + _lbl.Content().LayoutRectangle.Left,
+								_lbl.Content().GetLineTop(line) - _lbl.Content().GetLineHeight(line - 1) * 0.5
+							);
+							SetCaretPositionInfo(_lbl.Content().HitTestForCaret(pos), GetMoveTypeWithShift(false));
 							break;
 						}
 						case VK_DOWN: {
-							if (_lbl.Content().Font) {
-								SetCaretPositionInfo(
-									_lbl.Content().CaretLineDown(_caret, _cbase + _lbl.Content().LayoutRectangle.Left),
-									GetMoveTypeWithShift(false)
-								);
+							size_t line = _lbl.Content().GetLineOfCaret(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+							if (line >= _lbl.Content().GetLineNumber() - 1) {
+								break;
 							}
+							Core::Math::Vector2 pos(
+								_cbase + _lbl.Content().LayoutRectangle.Left,
+								_lbl.Content().GetLineBottom(line) + _lbl.Content().GetLineHeight(line + 1) * 0.5
+							);
+							SetCaretPositionInfo(_lbl.Content().HitTestForCaret(pos), GetMoveTypeWithShift(false));
 							break;
 						}
 						case VK_DELETE: {
@@ -358,42 +369,23 @@ namespace DE {
 						}
 						// TODO VK_PRIOR(pageup) and VK_NEXT(pagedown)
 						case VK_HOME: {
-							if (_caret == 0) {
-								break;
-							}
-							_lbl.Content().CacheFormat();
-							_lbl.Content().FormatCached = false;
-							size_t targetID = Core::Math::BinaryFindUpperBound(
-								_caret - 1,
-								*(_lbl.Content().FormatCache.LineBreaks),
-								_lbl.Content().FormatCache.LineBreaks.Count()
-							), targetPos = (
-								targetID >= _lbl.Content().FormatCache.LineBreaks.Count() ?
-								0 :
-								_lbl.Content().FormatCache.LineBreaks[targetID] + 1
+							size_t nc;
+							double nbase;
+							_lbl.Content().GetLineBeginning(
+								_lbl.Content().GetLineOfCaret(_caret, _cbase + _lbl.Content().LayoutRectangle.Left),
+								nc, nbase
 							);
-							SetCaretPositionInfo(targetPos, GetMoveTypeWithShift(true));
+							SetCaretPositionInfo(nc, GetMoveTypeWithShift(true), nbase - _lbl.Content().LayoutRectangle.Left);
 							break;
 						}
 						case VK_END: {
-							_lbl.Content().CacheFormat();
-							_lbl.Content().FormatCached = false;
-							size_t targetID = Core::Math::BinaryFindLowerBound(
-								_caret,
-								*(_lbl.Content().FormatCache.LineBreaks),
-								_lbl.Content().FormatCache.LineBreaks.Count()
-							), targetPos = (
-								targetID >= _lbl.Content().FormatCache.LineBreaks.Count() ?
-								_lbl.Content().Content.Length() :
-								_lbl.Content().FormatCache.LineBreaks[targetID]
+							size_t nc;
+							double nbase;
+							_lbl.Content().GetLineCursorEnding(
+								_lbl.Content().GetLineOfCaret(_caret, _cbase + _lbl.Content().LayoutRectangle.Left),
+								nc, nbase
 							);
-							if (
-								targetPos < _lbl.Content().Content.Length() &&
-								_lbl.Content().Content[targetPos] != _TEXT('\n')
-							) {
-								++targetPos;
-							}
-							SetCaretPositionInfo(targetPos, GetMoveTypeWithShift(true));
+							SetCaretPositionInfo(nc, GetMoveTypeWithShift(true), nbase - _lbl.Content().LayoutRectangle.Left);
 							break;
 						}
 					}

@@ -16,6 +16,9 @@ namespace DE {
 					_bufSize = bufSize;
 					_endBuf = _bufSize - 1;
 				}
+				~SimpleConsoleTextBox() {
+					_disposing = true;
+				}
 
 				virtual const Graphics::TextRendering::Font *GetFont() const {
 					return _fnt;

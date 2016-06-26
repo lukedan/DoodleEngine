@@ -16,7 +16,7 @@ namespace DE {
 			if (!_levels) {
 				throw SystemException(_TEXT("cannot allocate memory"));
 			}
-			if (minSize < (sizeof(void*)<<1)) {
+			if (minSize < sizeof(void*) * 2) {
 				throw UnderflowException(_TEXT("the size of the memory chunk is too small"));
 			}
 			if (zoom < 1.0) {

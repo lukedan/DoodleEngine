@@ -22,8 +22,6 @@ namespace DE {
 					_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Center;
 					_content.VerticalAlignment = Graphics::TextRendering::VerticalTextAlignment::Center;
 				}
-				virtual ~ButtonBase() {
-				}
 			protected:
 				ButtonState _state = ButtonState::Normal;
 				ButtonClickMode _mode = ButtonClickMode::OnMouseUp;

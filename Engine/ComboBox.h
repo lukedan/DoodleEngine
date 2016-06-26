@@ -33,8 +33,10 @@ namespace DE {
 						Item(const Item&) = delete;
 						Item &operator =(const Item&) = delete;
 						~Item() {
-							_father._pnl.Children().Delete(_btn);
-							_father._pnl.FitContent();
+							if (!_father._disposing) {
+								_father._pnl.Children().Delete(_btn);
+								_father._pnl.FitContent();
+							}
 						}
 
 						Graphics::TextRendering::BasicText &Content() {
@@ -71,7 +73,7 @@ namespace DE {
 					_box.SetVisibility(Visibility::Ignored);
 					_box.SetHorizontalScrollBarVisibility(ScrollBarVisibility::Hidden);
 					_box.LostFocus += [&](const Core::Info &info) {
-						if (IsSelectionCancelled()) {
+						if (!_disposing && IsSelectionCancelled()) {
 							OnSelectionCancelled(info);
 						}
 					};
@@ -110,6 +112,7 @@ namespace DE {
 					_dropPnl = &pnl;
 				}
 				virtual ~SimpleComboBox() {
+					_disposing = true;
 					_items.ForEach([&](Item *item) {
 						item->~Item();
 						Core::GlobalAllocator::Free(item);

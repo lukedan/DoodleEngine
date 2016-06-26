@@ -36,8 +36,6 @@ namespace DE {
 				CheckBoxBase() : ButtonBase() {
 					_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
 				}
-				virtual ~CheckBoxBase() {
-				}
 
 				CheckBoxState &State() {
 					return _checkState;
@@ -186,9 +184,6 @@ namespace DE {
 				const static Graphics::SolidBrush DefaultNormalBoxBrush, DefaultHoverBoxBrush, DefaultPressedBoxBrush, DefaultCheckedBoxBrush;
 				const static Graphics::Pen DefaultCheckPen;
 				const static double CheckSize;
-
-				virtual ~SimpleCheckBox() {
-				}
 
 				const Graphics::Brush *&NormalBrush() {
 					return _freeBkg;
