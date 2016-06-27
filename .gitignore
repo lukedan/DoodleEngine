@@ -1,14 +1,7 @@
-*.o
-*.dll
-*.exe
 *.otf
 *.ttf
 *.ttc
 *.txt
-.cproject
-.project
-.settings/
 /Debug/
-/DebugNoGLEW/
-/Demo/
+/Release/
 /WindowedDebug/
