@@ -59,7 +59,7 @@ namespace DE {
 				Window &operator =(const Window&) = delete;
 				virtual ~Window();
 
-				void Idle();
+				bool Idle();
 
 				void Show() {
 					ShowWindow(_hWnd, SW_SHOW);

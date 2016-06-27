@@ -14,7 +14,7 @@ namespace DE {
 					typedef Math::Rectangle AABB;
 
 					AABBNode() = default;
-					AABBNode(const AABB &c) : Region(c) {
+					explicit AABBNode(const AABB &c) : Region(c) {
 					}
 
 					AABBNode *Father = nullptr, *Left = nullptr, *Right = nullptr;

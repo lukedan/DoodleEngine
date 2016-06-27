@@ -212,7 +212,7 @@ namespace DE {
 			}
 		}
 
-		void Window::Idle() {
+		bool Window::Idle() {
 			if (PeekMessage(&_msg, _hWnd, 0, 0, PM_REMOVE)) {
 				if (_msg.message != WM_QUIT) {
 					TranslateMessage(&_msg);
@@ -222,7 +222,9 @@ namespace DE {
 					_hasEx = false;
 					throw Exception(_TEXT("an error occurred during WndProc; see LastErrorMessage for more info"));
 				}
+				return true;
 			}
+			return false;
 		}
 		void Window::PutToCenter() {
 			RECT r, work;
