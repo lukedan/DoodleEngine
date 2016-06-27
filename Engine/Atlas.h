@@ -110,7 +110,8 @@ namespace DE {
 					Atlas atl(
 						r.GetContext(),
 						Core::Collections::List<Texture>(),
-						Core::Collections::Dictionary<int, AtlasTexture>());
+						Core::Collections::Dictionary<int, AtlasTexture>()
+					);
 					size_t tCount = reader.ReadBinaryObject<size_t>();
 					for (size_t i = 0; i < tCount; ++i) {
 						Core::String file = reader.ReadBinaryString<TCHAR>();
