@@ -49,8 +49,8 @@ namespace DE {
 					_tok.Name = "a background token in a scroll view";
 #endif
 				}
-				virtual ~ScrollViewBase() {
-					_ssbs = true;
+				~ScrollViewBase() {
+					_disposing = true;
 				}
 
 			protected:
@@ -129,11 +129,6 @@ namespace DE {
 					_vert.SetSize(Size(width, _vert.GetSize().Height));
 				}
 
-				void FinishLayoutChange() override {
-					PanelBase::FinishLayoutChange();
-					ResetScrollBars();
-				}
-
 				void MakePointInView(const Core::Math::Vector2 &vec) {
 					Control *c = GetChild();
 					if (c) {
@@ -175,17 +170,17 @@ namespace DE {
 				virtual void ResetChildrenLayout() override {
 					if (!_ssbs) {
 						ResetScrollBars();
-					}
-					Control *child = GetChild();
-					for (decltype(_col)::Node *cur = _col.First(); cur; cur = cur->Next()) {
-						Control *c = cur->Value();
-						if (c != child) {
-							c->ResetVerticalLayout();
-							c->ResetHorizontalLayout();
-							c->FinishLayoutChange();
+						Control *child = GetChild();
+						for (decltype(_col)::Node *cur = _col.First(); cur; cur = cur->Next()) {
+							Control *c = cur->Value();
+							if (c != child) {
+								c->ResetVerticalLayout();
+								c->ResetHorizontalLayout();
+								c->FinishLayoutChange();
+							}
 						}
+						ResetChildLayout();
 					}
-					ResetChildLayout();
 				}
 
 				virtual void Render(Graphics::Renderer &r) override {

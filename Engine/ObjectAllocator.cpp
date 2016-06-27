@@ -16,7 +16,7 @@ namespace DE {
 			if (!_levels) {
 				throw SystemException(_TEXT("cannot allocate memory"));
 			}
-			if (minSize < (sizeof(void*)<<1)) {
+			if (minSize < sizeof(void*) * 2) {
 				throw UnderflowException(_TEXT("the size of the memory chunk is too small"));
 			}
 			if (zoom < 1.0) {
@@ -167,7 +167,7 @@ namespace DE {
 						}
 						const unsigned char *arr = reinterpret_cast<const unsigned char *const>(&(p3->_pos));
 
-						char c[3] = { '0', '0', '\0' };
+						char c[3] = {'0', '0', '\0'};
 						size_t alr = 0, lst = 0;
 						for (size_t csz = 0; csz < _levels[i]._blockSize; ++csz, ++alr) {
 							if (alr == lineLen) {

@@ -117,7 +117,7 @@ namespace DE {
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR), "cannot set texture parameters");
-						static const float fs[4] { 0.0f, 0.0f, 0.0f, 0.0f };
+						static const float fs[4] {0.0f, 0.0f, 0.0f, 0.0f};
 						AssertGLSuccess(glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, fs), "cannot initialize texture");
 						AssertGLSuccess(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, data.Scan0), "cannot set image pixels");
 						AssertGDIPlusSuccess(bmp.UnlockBits(&data), "cannot unlock the bitmap");
@@ -245,8 +245,8 @@ namespace DE {
 						AssertGLSuccess(glViewport(0.0, 0.0, rect.Width(), rect.Height()), "cannot set the viewport");
 						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR), "cannot set texture parameters");
-						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER), "cannot set texture parameters");
-						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER), "cannot set texture parameters");
+						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE), "cannot set texture parameters");
+						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0), "cannot set texture parameters");
 						AssertGLSuccess(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, rect.Width(), rect.Height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr), "cannot set texture image");

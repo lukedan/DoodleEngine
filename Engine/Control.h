@@ -41,10 +41,10 @@ namespace DE {
 				virtual ~Control();
 
 				virtual Anchor GetAnchor() const {
-					return static_cast<Anchor>(a);
+					return static_cast<Anchor>(_anchor);
 				}
 				virtual void SetAnchor(Anchor anchor) {
-					a = anchor;
+					_anchor = anchor;
 					ResetLayout();
 				}
 				virtual void AnchorTo(Anchor);
@@ -55,32 +55,32 @@ namespace DE {
 				}
 
 				virtual const Thickness &GetMargins() const {
-					return margin;
+					return _margin;
 				}
 				virtual const Thickness &GetActualMargins() const {
-					return actualMargin;
+					return _actualMargin;
 				}
 				virtual void SetMargins(const Thickness &newm) {
-					margin = newm;
+					_margin = newm;
 					ResetLayout();
 				}
 				virtual const Size &GetSize() const {
-					return size;
+					return _size;
 				}
 				virtual Size GetActualSize() const {
 					return Size(_actualLayout.Width(), _actualLayout.Height());
 				}
 				virtual void SetSize(const Size &s) {
-					size = s;
+					_size = s;
 					ResetLayout();
 				}
 
 				virtual Visibility GetVisibility() const {
-					return vis;
+					return _vis;
 				}
 				virtual void SetVisibility(Visibility v) {
-					if (vis != v) {
-						vis = v;
+					if (_vis != v) {
+						_vis = v;
 						if (v == Visibility::Ignored) {
 							if (_world != nullptr && _world->FocusedControl() == this) {
 								_world->SetFocus(nullptr);
@@ -116,7 +116,7 @@ namespace DE {
 				}
 
 				virtual int GetZIndex() const {
-					return zIndex;
+					return _zIndex;
 				}
 
 				virtual const Graphics::Brush *GetDefaultBackground() const {
@@ -165,7 +165,7 @@ namespace DE {
 				virtual void DumpDataBasicProperties(std::ostream &out, Core::Collections::List<bool> &hnl) {
 					DumpDataProperty(out, hnl, "world", _world);
 					DumpDataProperty(out, hnl, "father", _father);
-					DumpDataProperty(out, hnl, "zindex", zIndex);
+					DumpDataProperty(out, hnl, "zindex", _zIndex);
 					DE::Core::AsciiString str =
 						"Left=" +
 						Core::ToString<double, char>(_actualLayout.Left) +
@@ -207,7 +207,7 @@ namespace DE {
 				}
 
 				virtual bool HitTest(const Core::Math::Vector2 &pos) const {
-					if (vis == Visibility::Ignored || vis == Visibility::Ghost) {
+					if (_vis == Visibility::Ignored || _vis == Visibility::Ghost) {
 						return false;
 					}
 					return Core::Math::Rectangle::Intersect(_actualLayout, pos) != Core::Math::IntersectionType::None;
@@ -227,17 +227,17 @@ namespace DE {
 					return _inited;
 				}
 
-				Anchor a = Anchor::TopLeft;
+				Anchor _anchor = Anchor::TopLeft;
 				PanelBase *_father = nullptr;
 				Core::Math::Rectangle _actualLayout;
-				Thickness margin, actualMargin;
-				Size size, actualSize;
-				int zIndex = 0;
-				Visibility vis = Visibility::Visible;
-				bool _focusable = true, _useDefaultCursor = true;
+				Thickness _margin, _actualMargin;
+				Size _size, actualSize;
+				int _zIndex = 0;
+				Visibility _vis = Visibility::Visible;
+				bool _focusable = true, _useDefaultCursor = true, _disposing = false; // modify this when necessary
 				const Graphics::Brush *_background = nullptr;
 				const Graphics::Pen *_border = nullptr;
-							private:
+			private:
 				bool _inited = false;
 				World *_world = nullptr;
 

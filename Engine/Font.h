@@ -51,7 +51,7 @@ namespace DE {
     		}
 
     		class Font {
-    				friend class Text;
+    				friend class BasicText;
     			public:
     				Font() = default;
     				explicit Font(RenderingContexts::RenderingContext *rc) : _context(rc) {

@@ -72,7 +72,7 @@ namespace DE {
 			}
 		}
 		void World::Render(Renderer &r) {
-			if (_child && (_child->vis == Visibility::Visible || _child->vis == Visibility::Ghost)) {
+			if (_child && (_child->_vis == Visibility::Visible || _child->_vis == Visibility::Ghost)) {
 				_child->BeginRendering(r);
 				_child->Render(r);
 				_child->EndRendering(r);

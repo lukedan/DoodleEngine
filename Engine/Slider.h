@@ -14,6 +14,7 @@ namespace DE {
 					};
 				}
 				virtual ~SliderBase() {
+					_disposing = true;
 				}
 
 				LayoutDirection GetLayoutDirection() const {

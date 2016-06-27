@@ -40,7 +40,7 @@ namespace DE {
 				class ControlZIndexComparer {
 					public:
 						static int Compare(const Control *lhs, const Control *rhs) {
-							return Core::DefaultComparer<int>::Compare(lhs->zIndex, rhs->zIndex);
+							return Core::DefaultComparer<int>::Compare(lhs->_zIndex, rhs->_zIndex);
 						}
 				};
 				typedef Core::Collections::BSTNode<Control*, ControlZIndexComparer> Node;

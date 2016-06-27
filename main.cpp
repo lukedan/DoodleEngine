@@ -1,3 +1,4 @@
+#include <exception>
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -21,9 +22,14 @@ using namespace DE::Utils::LightCaster;
 using namespace DE::Utils::CharacterPhysics;
 using namespace DE::Utils::MazeGenerator;
 
+void TerminateCall() {
+	std::cout<<"here we go again\n";
+}
 class Test {
 	public:
 		Test() : window(_TEXT("TEST")), context(window) {
+			std::set_terminate(TerminateCall);
+
 			window.ClientSize = Vector2(1024.0, 768.0);
 			window.PutToCenter();
 			r = context.CreateRenderer();
@@ -535,22 +541,7 @@ class ControlTest : public Test {
 					}
 				}
 		};
-	protected:
-		size_t TestStringToSizeType(const String &str) {
-			size_t result = 0;
-			for (size_t i = 0; i < str.Length(); ++i) {
-				result = result * 10 + (str[i] - _TEXT('0'));
-			}
-			return result;
-		}
-		AsciiString TestWideStringToAsciiString(const String &str) {
-			AsciiString result;
-			for (size_t i = 0; i < str.Length(); ++i) {
-				result += (char)(str[i]);
-			}
-			return result;
-		}
-	public:
+
 		ControlTest() : Test() {
 			r = context.CreateRenderer();
 
@@ -577,19 +568,19 @@ class ControlTest : public Test {
 			//fnt = BMPFont::Load(r, reader);
 
 #ifdef DEBUG
-			base.Name = "the base panel";
-			popup.Name = "the popup panel";
-			p.Name = "the main wrap panel";
-			b.Name = "the button";
-			lbl.Name = "the label";
-			sBar.Name = "the slider";
-			pBar.Name = "the progress bar";
-			ckBox.Name = "the first check box";
-			tstat.Name = "the second check box";
-			rdOnly.Name = "the read-only check box";
-			view.Name = "the main scroll view";
-			comBox.Name = "the combo box";
-			tBox.Name = "the text box";
+//			base.Name = "the base panel";
+//			popup.Name = "the popup panel";
+//			p.Name = "the main wrap panel";
+//			b.Name = "the button";
+//			lbl.Name = "the label";
+//			sBar.Name = "the slider";
+//			pBar.Name = "the progress bar";
+//			ckBox.Name = "the first check box";
+//			tstat.Name = "the second check box";
+//			rdOnly.Name = "the read-only check box";
+//			view.Name = "the main scroll view";
+//			comBox.Name = "the combo box";
+//			tBox.Name = "the text box";
 #endif
 
 			base.SetAnchor(Anchor::All);
@@ -649,6 +640,9 @@ class ControlTest : public Test {
 			lbl.SetMargins(Thickness(10.0));
 			lbl.Content().Font = &fnt;
 			lbl.Content().TextColor = Color(0, 0, 0, 255);
+			lbl.Content().Content = _TEXT("The quick brown fox jumps over the lazy dog");
+			lbl.Content().Scale = 0.0;
+			lbl.FitContent();
 			p.Children().Insert(lbl);
 
 			sBarIndic.BrushColor() = Color(50, 50, 50, 255);
@@ -660,6 +654,11 @@ class ControlTest : public Test {
 			sBar.SetLayoutDirection(LayoutDirection::Horizontal);
 			sBar.IndicatorBrush() = &sBarIndic;
 			sBar.JumpToClickPosition() = true;
+			sBar.ValueChanged += [&](const Info&) {
+				lbl.Content().Scale = sBar.GetValue();
+				lbl.FitContent();
+				p.FitContent();
+			};
 			p.Children().Insert(sBar);
 
 			pBar.SetAnchor(Anchor::Top);
@@ -684,7 +683,7 @@ class ControlTest : public Test {
 //					consoleTB.WriteLine(_TEXT("not running"));
 //				}
 //			};
-			ckBox.FitText();
+			ckBox.FitContent();
 			p.Children().Insert(ckBox);
 
 			tstat.SetAnchor(Anchor::TopDock);
@@ -696,7 +695,7 @@ class ControlTest : public Test {
 				ckBox.Type = (info.NewState == CheckBoxState::Checked ? CheckBoxType::Button : CheckBoxType::Box);
 			};
 			tstat.Content().TextColor = Color(0, 0, 0, 255);
-			tstat.FitText();
+			tstat.FitContent();
 			p.Children().Insert(tstat);
 
 			tBox.Text().Font = &fnt;
@@ -709,6 +708,7 @@ class ControlTest : public Test {
 			tBox.SetMargins(Thickness(10.0));
 			tBoxCaret.PenColor() = Color(0, 0, 0, 255);
 			tBox.CaretPen() = &tBoxCaret;
+			tBox.WrapText = true;
 			p.Children().Insert(tBox);
 
 			rdOnly.SetAnchor(Anchor::TopLeft);
@@ -724,7 +724,7 @@ class ControlTest : public Test {
 				}
 			};
 			rdOnly.Content().TextColor = Color(0, 0, 0, 255);
-			rdOnly.FitText();
+			rdOnly.FitContent();
 			p.Children().Insert(rdOnly);
 
 			runner.Commands().InsertLeft(Command(_TEXT("help"), [&](const List<String> &args) {
@@ -779,9 +779,20 @@ class ControlTest : public Test {
 					rect.Width = bmp->GetWidth();
 					rect.Height = bmp->GetHeight();
 					bmp->LockBits(&rect, Gdiplus::ImageLockModeRead | Gdiplus::ImageLockModeWrite, PixelFormat32bppARGB, &data);
-					GdiPlusAccess::GaussianBlur(data, TestStringToSizeType(args[2]), TestStringToSizeType(args[3]));
+					GdiPlusAccess::GaussianBlur(data, Extract<size_t>(args[2]), Extract<size_t>(args[3]));
 					bmp->UnlockBits(&data);
 					GdiPlusAccess::SaveBitmap(*bmp, args[4], Gdiplus::ImageFormatBMP);
+					return 0;
+				});
+			}));
+			runner.Commands().InsertLeft(Command(_TEXT("sysinfo"), [&](const List<String> &args) {
+				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
+					runner.Write(
+						_TEXT("FPS:\t\t\t\t") + ToString(counter.GetFPS()) + _TEXT("\n")
+						_TEXT("Average FPS:\t\t") + ToString(counter.GetAverageFPS()) + _TEXT("\n")
+						_TEXT("Memory Usage:\t\t") + ToString(GlobalAllocator::UsedSize()) + _TEXT("\n")
+						_TEXT("Memory Allocated:\t") + ToString(GlobalAllocator::AllocatedSize()) + _TEXT("\n")
+					);
 					return 0;
 				});
 			}));
@@ -797,8 +808,8 @@ class ControlTest : public Test {
 						if (args[1] == _TEXT("z")) {
 							Zipper zp;
 							AsciiString
-								from = TestWideStringToAsciiString(args[2]),
-								to = TestWideStringToAsciiString(args[3]);
+								from = NarrowString(args[2]),
+								to = NarrowString(args[3]);
 							if (!FileAccess::Exists(from)) {
 								runner.WriteLineWithColor(_TEXT("file ") + args[2] + _TEXT(" does not exist"), Color(255, 0, 0, 255));
 								return -1;
@@ -823,8 +834,8 @@ class ControlTest : public Test {
 						} else if (args[1] == _TEXT("u")) {
 							Unzipper uzp;
 							AsciiString
-								from = TestWideStringToAsciiString(args[2]),
-								to = TestWideStringToAsciiString(args[3]);
+								from = NarrowString(args[2]),
+								to = NarrowString(args[3]);
 							if (!FileAccess::Exists(from)) {
 								runner.WriteLineWithColor(_TEXT("file ") + args[2] + _TEXT(" does not exist"), Color(255, 0, 0, 255));
 								return -1;
@@ -878,7 +889,7 @@ class ControlTest : public Test {
 			comBox.Content().Font = &fnt;
 			comBox.Content().Content = _TEXT("Please choose your option");
 			comBox.Content().TextColor = Color(0, 0, 0, 255);
-			comBox.FitText();
+			comBox.FitContent();
 			comBox.SetAnchor(Anchor::TopDock);
 			comBox.SetMargins(Thickness(10));
 			InsertComboBoxItem(_TEXT("the first one"));
@@ -898,6 +909,8 @@ class ControlTest : public Test {
 				r.SetViewbox(newVp);
 				w.SetBounds(newVp);
 			};
+
+			p.FitContent();
 		}
 		void LoadTextBoxContentFromFile(const Core::AsciiString &file) {
 			setlocale(LC_ALL, "");
@@ -917,26 +930,24 @@ class ControlTest : public Test {
 			item->Content().Font = &fnt;
 			item->Content().Content = text;
 			item->Content().TextColor = Color(0, 0, 0, 255);
-			item->FitText();
+			item->FitContent();
 		}
 
 		virtual void Update(double dt) {
 			counter.Update(dt);
 
-			wstringstream ss;
-			ss <<
-				"FPS:"<<counter.GetFPS() <<
-				"\nAverage FPS:"<<counter.GetAverageFPS() <<
-				"\nMemory Usage:"<<GlobalAllocator::UsedSize() <<
-				"\nMemory Allocated:"<<GlobalAllocator::AllocatedSize() <<
-				"\nthe quick brown fox jumps over the lazy dog" <<
-				"\nTHE QUICK BROWN FOX JUMPS OVER THE LAZY DOG" <<
-				"\n1234567890";
-			lbl.Content().Content = ss.str().c_str();
-			lbl.Content().Scale = sBar.GetValue();
-			lbl.FitText();
-
-			p.FitContent();
+//			wstringstream ss;
+//			ss <<
+//				"FPS:"<<counter.GetFPS() <<
+//				"\nAverage FPS:"<<counter.GetAverageFPS() <<
+//				"\nMemory Usage:"<<GlobalAllocator::UsedSize() <<
+//				"\nMemory Allocated:"<<GlobalAllocator::AllocatedSize() <<
+//				"\nthe quick brown fox jumps over the lazy dog" <<
+//				"\nTHE QUICK BROWN FOX JUMPS OVER THE LAZY DOG" <<
+//				"\n1234567890";
+//			lbl.Content().Content = ss.str().c_str();
+//			lbl.FitContent();
+//			p.FitContent();
 
 			w.Update(dt);
 		}
@@ -946,6 +957,13 @@ class ControlTest : public Test {
 			r.End();
 		}
 	private:
+		AutoFont fnt, consFnt;
+
+		SolidBrush transBkg;
+		SolidBrush sBarIndic;
+		Pen pgFT, pgMU;
+		Pen tBoxCaret;
+
 		UI::World w;
 		Panel base, popup;
 		WrapPanel p;
@@ -957,19 +975,13 @@ class ControlTest : public Test {
 		SimpleScrollView view;
 		SimpleComboBox comBox;
 		TextBox tBox;
-		Pen tBoxCaret;
-		SolidBrush sBarIndic;
 		PerformanceGraph pGraph;
-		Pen pgFT, pgMU;
 		SimpleConsoleRunner runner;
 		Console console;
-
-		SolidBrush transBkg;
 
 		FPSCounter counter;
 
 //		BMPFontGenerator gen;
-		AutoFont fnt, consFnt;
 };
 class LightTest : public Test {
 	public:

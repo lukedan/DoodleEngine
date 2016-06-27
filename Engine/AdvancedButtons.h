@@ -36,8 +36,6 @@ namespace DE {
 				CheckBoxBase() : ButtonBase() {
 					_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
 				}
-				virtual ~CheckBoxBase() {
-				}
 
 				CheckBoxState &State() {
 					return _checkState;
@@ -69,7 +67,7 @@ namespace DE {
 					return _threeState;
 				}
 
-				virtual void FitText() override {
+				virtual void FitContent() override {
 					Core::Math::Vector2 cSize = _content.GetSize();
 					if (_type == CheckBoxType::Box) {
 						SetSize(Size(cSize.X + _boxSize.Width, Core::Math::Max(cSize.Y, _boxSize.Height)));
@@ -186,9 +184,6 @@ namespace DE {
 				const static Graphics::SolidBrush DefaultNormalBoxBrush, DefaultHoverBoxBrush, DefaultPressedBoxBrush, DefaultCheckedBoxBrush;
 				const static Graphics::Pen DefaultCheckPen;
 				const static double CheckSize;
-
-				virtual ~SimpleCheckBox() {
-				}
 
 				const Graphics::Brush *&NormalBrush() {
 					return _freeBkg;

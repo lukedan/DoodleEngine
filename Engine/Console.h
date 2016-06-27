@@ -16,6 +16,9 @@ namespace DE {
 					_bufSize = bufSize;
 					_endBuf = _bufSize - 1;
 				}
+				~SimpleConsoleTextBox() {
+					_disposing = true;
+				}
 
 				virtual const Graphics::TextRendering::Font *GetFont() const {
 					return _fnt;
@@ -58,6 +61,15 @@ namespace DE {
  					if (_crsrY >= _bufSize) {
  						_crsrY -= _bufSize;
  					}
+ 				}
+ 				virtual size_t GetCursorX() const {
+ 					return _crsrX;
+ 				}
+ 				virtual size_t GetAbsoluteCursorY() const {
+ 					return _crsrY;
+ 				}
+ 				virtual int GetRelativeCursorY() const { // NOTE overflows when there are more than 2 billion lines
+ 					return static_cast<int>(_crsrY) - static_cast<int>(_cFVisLine);
  				}
 
  				virtual Core::Color GetLineColor() const {
@@ -129,7 +141,7 @@ namespace DE {
 					if (!Initialized()) {
 						Initialize();
 					}
-					Graphics::TextRendering::Text tmp;
+					Graphics::TextRendering::BasicText tmp;
 					tmp.Font = _fnt;
 					tmp.Content = Core::String(_TEXT(' '), DefaultBufferWidth);
 					SetSize(Size(tmp.GetSize().X + _sideBar.GetSize().Width, GetSize().Height));
@@ -245,7 +257,7 @@ namespace DE {
 				}
 				virtual void Render(Graphics::Renderer &r) override {
 					if (_fnt != nullptr) {
-						Graphics::TextRendering::Text tmp;
+						Graphics::TextRendering::BasicText tmp;
 						tmp.Padding = Core::Math::Rectangle();
 						tmp.LayoutRectangle = Core::Math::Rectangle(
 							GetActualLayout().Left, GetActualLayout().Top, GetActualSize().Width, _fnt->GetHeight()
@@ -393,10 +405,10 @@ namespace DE {
 				}
 				virtual void Update(double) override {
 					if (!_executed) {
+						_executed = true;
 						if (_com != nullptr) {
 							_retCache = _com(_argsCache);
 						}
-						_executed = true;
 					}
 				}
 				virtual int GetReturnValue() const override {
@@ -427,41 +439,13 @@ namespace DE {
 				Core::Collections::SortedList<Command, CommandComparer> &Commands() {
 					return _commands;
 				}
+
+				Core::ReferenceProperty<bool> EchoCommand {true};
 			protected:
 				Core::Collections::SortedList<Command, CommandComparer> _commands;
 				RunningCommand *_curCommand = nullptr;
 
-				virtual void OnCommand(const Core::String &str) override {
-					if (_curCommand != nullptr) {
-						if (_curCommand->GetState() == CommandState::WaitingInput) {
-							_curCommand->OnInput(str);
-						}
-					} else {
-						Core::Collections::List<Core::String> parsed = CommandLineParser::SplitToWords(str);
-						if (parsed.Count() == 0) {
-							return;
-						}
-						Core::String target = parsed[0];
-						for (size_t i = 0; i < target.Length(); ++i) {
-							if (target[i] >= _TEXT('A') && target[i] <= _TEXT('Z')) {
-								target[i] = target[i] - _TEXT('A') + _TEXT('a');
-							}
-						}
-						const Command *exec = nullptr;
-						_commands.ForEach([&](const Command &cmd) {
-							if (cmd.GetName() == target) {
-								exec = &cmd;
-								return false;
-							}
-							return true;
-						});
-						if (exec == nullptr) {
-							WriteLineWithColor(_TEXT("No such command: ") + parsed[0], Core::Color(255, 0, 0, 255));
-							return;
-						}
-						_curCommand = exec->GetExecutable()(parsed);
-					}
-				}
+				virtual void OnCommand(const Core::String&) override;
 				virtual void Update(double dt) override {
 					if (_curCommand) {
 						_curCommand->Update(dt);
@@ -505,7 +489,7 @@ namespace DE {
 
 					_input.SetAnchor(Anchor::BottomDock);
 					_input.SetMargins(Thickness(0.0));
-					_input.SetMultiLine(false);
+					_input.MultiLine = false;
 					_input.Text().TextColor = Core::Color(0, 0, 0, 255);
 					_input.KeyboardText += [&](const Core::Input::TextInfo &info) {
 						if (info.GetChar() == _TEXT('\n') || info.GetChar() == _TEXT('\r')) {
@@ -562,6 +546,10 @@ namespace DE {
 				virtual void AutoSetWidth() {
 					_output.AutoSetWidth();
 					SetSize(Size(_output.GetSize().Width, GetSize().Height));
+				}
+
+				const SimpleConsoleTextBox &OutputTextBox() const {
+					return _output;
 				}
 			protected:
 				SimpleConsoleTextBox _output;

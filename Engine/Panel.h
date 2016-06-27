@@ -14,7 +14,8 @@ namespace DE {
             public:
 				PanelBase() : Control(), _col(this) {
 				}
-				virtual ~PanelBase() {
+				~PanelBase() {
+					_disposing = true;
 				}
 
 				bool OverrideChildrenLayout() const {
@@ -47,7 +48,7 @@ namespace DE {
 				virtual void Render(Graphics::Renderer &r) override {
 					Control::Render(r);
 					_col.ForEach([&](Control *c) {
-						if (c->vis == Visibility::Visible || c->vis == Visibility::Ghost) {
+						if (c->_vis == Visibility::Visible || c->_vis == Visibility::Ghost) {
 							c->BeginRendering(r);
 							c->Render(r);
 							c->EndRendering(r);
@@ -78,7 +79,7 @@ namespace DE {
 				}
 
 				virtual bool HitTest(const Core::Math::Vector2 &pos) const override {
-					if (vis == Visibility::Ignored || vis == Visibility::Ghost) {
+					if (_vis == Visibility::Ignored || _vis == Visibility::Ghost) {
 						return false;
 					}
 					if (_background || GetDefaultBackground()) {
@@ -197,9 +198,6 @@ namespace DE {
 		class Panel : public PanelBase {
 				friend class World;
 			public:
-				virtual ~Panel() {
-				}
-
 				ControlCollection &Children() {
 					return _col;
 				}
