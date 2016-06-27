@@ -277,7 +277,7 @@ namespace DE {
 				virtual bool IsSelectionCancelled() const {
 					return GetWorld()->FocusedControl() != this && GetWorld()->FocusedControl() != &_box;
 				}
-				virtual void OnSelectionCancelled(const Core::Info &info) {
+				virtual void OnSelectionCancelled(const Core::Info&) {
 					_box.SetVisibility(Visibility::Ignored);
 				}
 				virtual bool OnMouseScroll(const Core::Input::MouseScrollInfo &info) override {

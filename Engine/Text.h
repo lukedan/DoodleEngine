@@ -141,7 +141,7 @@ namespace DE {
 					Core::Math::Vector2 GetCaretPosition(size_t caret, double baseline) const override {
 						return GetRelativeCaretPosition(caret, baseline) + LayoutRectangle.TopLeft();
 					}
-					double GetCaretHeight(size_t caret) const override {
+					double GetCaretHeight(size_t) const override {
 						if (Font) {
 							return Font->GetHeight() * Scale;
 						}
@@ -172,15 +172,126 @@ namespace DE {
 					static double DoGetLineBottom(const BasicTextFormatCache&, const BasicText&, size_t);
 			};
 
-			enum class StreamedRichTextParamChange {
-				Color,
-				Font,
-				Scale
-			};
 			class StreamedRichText : public Text {
 				public:
+					struct TextFormatInfo {
+						double Scale = 1.0, LocalVerticalPosition = 0.5;
+						const Font *Font = nullptr;
+						Core::Color Color;
+					};
+
+					enum class ChangeType {
+						Invalid,
+						Scale,
+						Font,
+						Color,
+						LocalVerticalPosition
+					};
+					union ChangeParameters {
+						double NewScale;
+						double LocalVerticalPosition;
+						const Font *NewFont;
+						struct {
+							unsigned char R, G, B, A;
+						} NewColor;
+					};
+					struct ChangeInfo {
+						ChangeInfo() = default;
+						ChangeInfo(size_t pos, ChangeType type) : Position(pos), Type(type) {
+						}
+
+						size_t Position = 0;
+						ChangeType Type = ChangeType::Invalid;
+						ChangeParameters Parameters;
+					};
+
+					struct StreamedRichTextFormatCache {
+						Core::Collections::List<double> LineLengths, LineHeights;
+						Core::Collections::List<size_t> LineBreaks;
+						Core::Math::Vector2 Size;
+					};
+
+					Core::String Content;
+					Core::Math::Rectangle LayoutRectangle;
+					Core::Collections::List<ChangeInfo> Changes;
+					LineWrapType WrapType;
+
+					StreamedRichText &AppendScaleChange(double scale) {
+						ChangeInfo ci(Content.Length(), ChangeType::Scale);
+						ci.Parameters.NewScale = scale;
+						Changes.PushBack(ci);
+						return *this;
+					}
+					StreamedRichText &AppendFontChange(const Font *font) {
+						ChangeInfo ci(Content.Length(), ChangeType::Font);
+						ci.Parameters.NewFont = font;
+						Changes.PushBack(ci);
+						return *this;
+					}
+					StreamedRichText &AppendColorChange(const Core::Color &c) {
+						ChangeInfo ci(Content.Length(), ChangeType::Color);
+						ci.Parameters.NewColor.A = c.A;
+						ci.Parameters.NewColor.R = c.R;
+						ci.Parameters.NewColor.G = c.G;
+						ci.Parameters.NewColor.B = c.B;
+						Changes.PushBack(ci);
+						return *this;
+					}
+					StreamedRichText &AppendLocalVerticalPositionChange(double vpos) {
+						ChangeInfo ci(Content.Length(), ChangeType::LocalVerticalPosition);
+						ci.Parameters.LocalVerticalPosition = vpos;
+						Changes.PushBack(ci);
+						return *this;
+					}
+					StreamedRichText &AppendText(const Core::String &text) {
+						Content += text;
+						return *this;
+					}
+					StreamedRichText &operator <<(const Core::String &text) {
+						Content += text;
+						return *this;
+					}
 				protected:
+					static void DoCache(const StreamedRichText&, StreamedRichTextFormatCache&);
 			};
+			namespace Streaming {
+				struct NewScale {
+					explicit NewScale(double d) : Scale(d) {
+					}
+					NewScale(const NewScale&) = delete;
+					friend StreamedRichText &operator <<(StreamedRichText &txt, const NewScale &sc) {
+						return txt.AppendScaleChange(sc.Scale);
+					}
+					double Scale;
+				};
+				struct NewFont {
+					explicit NewFont(const Font *fnt) : Font(fnt) {
+					}
+					NewFont(const NewFont&) = delete;
+					friend StreamedRichText &operator <<(StreamedRichText &txt, const NewFont &sc) {
+						return txt.AppendFontChange(sc.Font);
+					}
+					const Font *Font;
+				};
+				struct NewColor {
+					explicit NewColor(const Core::Color &c) : Color(c) {
+					}
+					NewColor(const NewColor&) = delete;
+					friend StreamedRichText &operator <<(StreamedRichText &txt, const NewColor &sc) {
+						return txt.AppendColorChange(sc.Color);
+					}
+					Core::Color Color;
+				};
+				struct NewLocalVerticalPosition {
+					explicit NewLocalVerticalPosition(double v) : LocalVerticalPosition(v) {
+					}
+					NewLocalVerticalPosition(const NewLocalVerticalPosition&) = delete;
+					friend StreamedRichText &operator <<(StreamedRichText &txt, const NewLocalVerticalPosition &lvp) {
+						return txt.AppendLocalVerticalPositionChange(lvp.LocalVerticalPosition);
+					}
+					double LocalVerticalPosition;
+				};
+			}
 		}
 	}
 }

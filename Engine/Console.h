@@ -200,7 +200,7 @@ namespace DE {
 					_sideBar.SetAnchor(Anchor::RightDock);
 					_sideBar.SetSize(Size(ScrollBarBase::DefaultWidth, 0.0));
 					_sideBar.SetMargins(Thickness(0.0));
-					_sideBar.Scroll += [&](const ScrollInfo &info) {
+					_sideBar.Scroll += [&](const ScrollInfo&) {
 						if (!_myScroll) {
 							ResetLinesLayout(false);
 						}

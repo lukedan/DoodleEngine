@@ -154,7 +154,6 @@ namespace DE {
 				List<Core::Color> &tarList = result.Last();
 				for (size_t y = 0; y < data.Height; ++y) {
 					DArr<4> curPx;
-					double R = 0.0, G = 0.0, B = 0.0, A = 0.0;
 					for (int dx = -ixrad; dx <= ixrad; ++dx) {
 						size_t px = ((-dx) > static_cast<int>(x) ? 0 : static_cast<size_t>(static_cast<int>(x) + dx));
 						if (px >= data.Width) {

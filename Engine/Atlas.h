@@ -162,7 +162,7 @@ namespace DE {
 					return _data->_ats;
 				}
 
-				RenderingContexts::RenderingContext *const Context() const {
+				RenderingContexts::RenderingContext *const &Context() const {
 					if (!_data) {
 						throw Core::InvalidOperationException(_TEXT("the Atlas is empty"));
 					}

@@ -147,7 +147,7 @@ namespace DE {
 					PanelBase::Render(r);
 				}
 
-				virtual void OnDragMove(const DragInfo &info) {
+				virtual void OnDragMove(const DragInfo&) {
 					_val = _maxV * (GetSliderButtonPosition() / (GetSliderSize() - _sliderSize));
 					ValueChanged(Core::Info());
 				}

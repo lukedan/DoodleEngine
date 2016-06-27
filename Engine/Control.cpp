@@ -85,7 +85,7 @@ namespace DE {
 				bkg->FillRect(_actualLayout, r);
 			}
 		}
-		void Control::Render(Graphics::Renderer &r) {
+		void Control::Render(Graphics::Renderer&) {
 		}
 		void Control::EndRendering(Graphics::Renderer &r) {
 			// top layer

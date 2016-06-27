@@ -164,10 +164,10 @@ namespace DE {
 					int _key = 0, _repeat = 0, _scanCode = 0;
 					bool _pDown = false, _ext = false;
 			};
-			struct TextInfo {
+			struct TextInfo { // TODO process lParam too
 				public:
 					TextInfo() = default;
-					TextInfo(WPARAM wParam, LPARAM lParam) : _c(wParam) {
+					TextInfo(WPARAM wParam, LPARAM) : _c(wParam) {
 					}
 
 					wchar_t GetChar() const {

@@ -159,7 +159,7 @@ namespace DE {
 				_focus->OnLostFocus(info);
 			}
 		}
-		void World::OnSetCursor(const Core::Info &info) {
+		void World::OnSetCursor(const Core::Info&) {
 			if (IsMouseOver()) {
 				GetCursor().Set();
 			}

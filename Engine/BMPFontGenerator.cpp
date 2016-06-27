@@ -73,9 +73,9 @@ namespace DE {
 						AssertGDIPlusSuccess(bmp->LockBits(&r, ImageLockModeWrite, PixelFormat32bppARGB, &bmpdt), _TEXT("cannot lock the bitmap"));
 						const unsigned char *buf = bmpdata.buffer;
 						int *first = static_cast<int*>(bmpdt.Scan0);
-						for (int y = 0; y < bmpdata.rows; ++y) {
+						for (UINT y = 0; y < bmpdata.rows; ++y) {
 							int *beg = first;
-							for (int x = 0; x < bmpdata.width; ++x) {
+							for (UINT x = 0; x < bmpdata.width; ++x) {
 								*beg = 0xFFFFFF | (static_cast<int>(*buf) << 24);
 								++beg;
 								++buf;

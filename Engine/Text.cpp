@@ -1,5 +1,4 @@
 #include "Text.h"
-
 namespace DE {
 	namespace Graphics {
 		namespace TextRendering {
@@ -358,7 +357,7 @@ namespace DE {
 				}
 				return line;
 			}
-			size_t BasicText::DoGetLineOfCaret(const BasicTextFormatCache &cache, const BasicText &text, size_t caret) {
+			size_t BasicText::DoGetLineOfCaret(const BasicTextFormatCache &cache, const BasicText&, size_t caret) {
 				size_t line = 0;
 				cache.LineBreaks.ForEach([&](size_t pos) {
 					if (pos < caret) {
@@ -369,7 +368,7 @@ namespace DE {
 				});
 				return line;
 			}
-			size_t BasicText::DoGetLineNumber(const BasicTextFormatCache &cache, const BasicText &text) {
+			size_t BasicText::DoGetLineNumber(const BasicTextFormatCache &cache, const BasicText&) {
 				return cache.LineLengths.Count();
 			}
 			void BasicText::DoGetLineBeginning(const BasicTextFormatCache &cache, const BasicText &text, size_t line, size_t &caret, double &pos) {
@@ -423,18 +422,18 @@ namespace DE {
 				FormatCached = true;
 			}
 
-#define BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, PARAMS...)   \
-	if (Font) {                                               \
-		if (FormatCached) {                                   \
-			FUNC(FormatCache, PARAMS);                        \
-		} else {                                              \
-			BasicTextFormatCache cc;                          \
-			DoCache(*this, cc);                               \
-			FUNC(cc, PARAMS);                                 \
-		}                                                     \
-	}                                                         \
+#define BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, ...)   \
+	if (Font) {                                         \
+		if (FormatCached) {                             \
+			FUNC(FormatCache, __VA_ARGS__);             \
+		} else {                                        \
+			BasicTextFormatCache cc;                    \
+			DoCache(*this, cc);                         \
+			FUNC(cc, __VA_ARGS__);                      \
+		}                                               \
+	}                                                   \
 
-#define BASICTEXT_NEEDCACHE_FUNC_IMPL(FUNC, PARAMS...) BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, *this, PARAMS)
+#define BASICTEXT_NEEDCACHE_FUNC_IMPL(FUNC, ...) BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, *this, __VA_ARGS__)
 #define BASICTEXT_NEEDCACHE_FUNC_IMPL_NOPARAM(FUNC) BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, *this)
 			void BasicText::Render(Renderer &r) const {
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(DoRender, r, RoundToInteger);
@@ -495,6 +494,63 @@ namespace DE {
 #undef BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE
 #undef BASICTEXT_NEEDCACHE_FUNC_IMPL
 #undef BASICTEXT_NEEDCACHE_FUNC_IMPL_NOPARAM
+
+//			void StreamedRichText::DoCache(const StreamedRichText &txt, StreamedRichTextFormatCache &cache) { // idea: update lastBreak to make sure it's always valid
+//				TextFormatInfo curInfo, lastBreakInfo;
+//				double lbw = 0.0, lbh = 0.0, curw = 0.0, curh = 0.0, maxh = 0.0;
+//				bool hasBreakable = false, hasBreakableChar = false;
+//				CharData cData;
+//				size_t markID = 0, breakMarkID = 0;
+//				// first pass
+//				for (size_t i = 0; i < txt.Content.Length(); ++i) {
+//					TCHAR curc = txt.Content[i];
+//					while (markID < txt.Changes.Count() && txt.Changes[markID].Position == i) {
+//						ChangeInfo &ci = txt.Changes[markID];
+//						switch (ci.Type) {
+//							case ChangeType::Scale: {
+//								curInfo.Scale = ci.Parameters.NewScale;
+//								break;
+//							}
+//						}
+//					}
+//					cData = curInfo.Font->GetData(curc);
+//					curw += cData.Advance;
+//					if (curc == _TEXT('\n')) {
+//						lastBreakInfo = curInfo;
+//
+//					}
+//					switch (txt.Content[i]) {
+//						case _TEXT('\n'): {
+//							// switch to new line
+//							break;
+//						}
+//						default: {
+//							bool curBreakable = (txt.WrapType == LineWrapType::Wrap);
+//							if (
+//								(txt.Content[i] >= _TEXT('a') && txt.Content[i] <= _TEXT('z')) ||
+//								(txt.Content[i] >= _TEXT('A') && txt.Content[i] <= _TEXT('Z'))
+//							) { // not a breakable character
+//								if (!hasBreakableChar && txt.WrapType == LineWrapType::WrapWordsNoOverflow) {
+//									curBreakable = true;
+//								}
+//							} else {
+//								if (txt.WrapType != LineWrapType::NoWrap) {
+//									curBreakable = true;
+//									hasBreakableChar = true;
+//								}
+//							}
+//							if (i + 1 < txt.Content.Length() && txt.Content[i + 1] == _TEXT('\n')) {
+//								curBreakable = false;
+//							}
+//							if (curBreakable) {
+//								hasBreakable = true;
+//								lastBreakInfo = curInfo;
+//								lbw = curw;
+//							}
+//						}
+//					}
+//				}
+//			}
 		}
 	}
 }

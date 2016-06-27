@@ -228,7 +228,7 @@ namespace DE {
 						if (count > 0) {
 							AssertGLSuccess(glTexCoordPointer(2, GL_DOUBLE, sizeof(Core::Math::Vector2), uvs), "cannot set UV pointer");
 							AssertGLSuccess(glColorPointer(4, GL_UNSIGNED_BYTE, sizeof(Core::Color), clrs), "cannot set color pointer");
-							AssertGLSuccess(glVertexPointer(2, GL_DOUBLE, sizeof(Core::Math::Vector2), uvs), "cannot set vertex pointer");
+							AssertGLSuccess(glVertexPointer(2, GL_DOUBLE, sizeof(Core::Math::Vector2), poss), "cannot set vertex pointer");
 							AssertGLSuccess(glDrawArrays(GetModeID(mode), 0, count), "cannot draw the vertices");
 						}
 					}

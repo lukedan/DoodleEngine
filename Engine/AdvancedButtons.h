@@ -113,7 +113,7 @@ namespace DE {
 						_content.LayoutRectangle.Left += _boxSize.Width;
 					}
 				}
-				virtual void OnClick(const Core::Info &info) override {
+				virtual void OnClick(const Core::Info&) override {
 					switch (_checkState) {
 						case CheckBoxState::Checked: {
 							_checkState = CheckBoxState::Unchecked;

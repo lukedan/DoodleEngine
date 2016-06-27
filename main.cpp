@@ -49,7 +49,7 @@ class Test {
 			}
 		}
 
-		virtual void Update(double dt) {
+		virtual void Update(double) {
 		}
 		virtual void Render() = 0;
 	protected:
@@ -64,7 +64,7 @@ class ControlTest : public Test {
 	public:
 		class RunningBFCommand : public RunningCommand {
 			public:
-				RunningBFCommand(const List<String> &args, ControlTest &test) : _father(test) {
+				RunningBFCommand(const List<String>&, ControlTest &test) : _father(test) {
 					String rawProg = _father.tBox.Text().Content;
 					for (size_t i = 0; i < rawProg.Length(); ++i) {
 						TCHAR c = rawProg[i];
@@ -354,6 +354,9 @@ class ControlTest : public Test {
 							}
 							break;
 						}
+						default: {
+							break;
+						}
 					}
 				}
 				virtual int GetReturnValue() const override {
@@ -557,7 +560,7 @@ class ControlTest : public Test {
 
 			FontFace textface("cambria.ttc", 18.0);
 			fnt = AutoFont(&context, textface);
-			FontFace consface("consolefont.ttf", 13.0);
+			FontFace consface("Inconsolata.otf", 13.0);
 			consFnt = AutoFont(&context, consface);
 
 			//FileWriter writer(_TEXT("test.fnt"));
@@ -614,7 +617,7 @@ class ControlTest : public Test {
 			b.SetAnchor(Anchor::Top);
 			b.SetSize(Size(150.0, 25.0));
 			b.SetMargins(Thickness(10.0));
-			b.Click += [&](const Info &info) {
+			b.Click += [&](const Info&) {
 				sBar.SetValue(1.0);
 			};
 			b.Content().Content = _TEXT("Restore Size");
@@ -626,7 +629,7 @@ class ControlTest : public Test {
 			bDump.SetAnchor(Anchor::Top);
 			bDump.SetSize(Size(150.0, 25.0));
 			bDump.SetMargins(Thickness(10.0));
-			bDump.Click += [&](const Info &info) {
+			bDump.Click += [&](const Info&) {
 				GlobalAllocator::DumpAsText("tmpdump.txt");
 			};
 			bDump.Content().Content = _TEXT("Dump");
@@ -728,7 +731,7 @@ class ControlTest : public Test {
 			p.Children().Insert(rdOnly);
 
 			runner.Commands().InsertLeft(Command(_TEXT("help"), [&](const List<String> &args) {
-				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
+				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String>&) {
 					runner.WriteLine(_TEXT("beer	prints the lyrics of the song \"99 bottles of beer\""));
 					runner.WriteLine(_TEXT("cls		clears the console screen"));
 					runner.WriteLine(_TEXT("bf		runs the brainf*ck program specified in the parameters"));
@@ -740,7 +743,7 @@ class ControlTest : public Test {
 				});
 			}));
 			runner.Commands().InsertLeft(Command(_TEXT("beer"), [&](const List<String> &args) {
-				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
+				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String>&) {
 					for (int x = 99; x > 1; ) {
 						runner.WriteLine(ToString(x) + _TEXT(" bottles of beer on the wall, ") + ToString(x) + _TEXT(" bottles of beer."));
 						runner.WriteLine(_TEXT("Take one down and pass it around, ") + ToString(--x) + _TEXT(" bottles of beer on the wall."));
@@ -755,7 +758,7 @@ class ControlTest : public Test {
 				});
 			}));
 			runner.Commands().InsertLeft(Command(_TEXT("cls"), [&](const List<String> &args) {
-				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
+				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String>&) {
 					runner.ClearConsole();
 					return 0;
 				});
@@ -786,7 +789,7 @@ class ControlTest : public Test {
 				});
 			}));
 			runner.Commands().InsertLeft(Command(_TEXT("sysinfo"), [&](const List<String> &args) {
-				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
+				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String>&) {
 					runner.Write(
 						_TEXT("FPS:\t\t\t\t") + ToString(counter.GetFPS()) + _TEXT("\n")
 						_TEXT("Average FPS:\t\t") + ToString(counter.GetAverageFPS()) + _TEXT("\n")
@@ -797,7 +800,7 @@ class ControlTest : public Test {
 				});
 			}));
 			runner.Commands().InsertLeft(Command(_TEXT("exit"), [&](const List<String> &args) {
-				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String> &args) {
+				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String>&) {
 					stop = true;
 					return 0;
 				});
@@ -994,9 +997,6 @@ class LightTest : public Test {
 				r.SetViewport(Math::Rectangle(v));
 				r.SetViewbox(Math::Rectangle(v));
 			};
-			window.MouseMove += [&](const MouseMoveInfo &info) {
-				//phys.Characters()[0].Position = info.GetPosition();
-			};
 			window.MouseDown += [&](const MouseButtonInfo &info) {
 				if (info.Button == MouseButton::Left) {
 					if (IsKeyDown(VK_LSHIFT)) {
@@ -1103,7 +1103,7 @@ class LightTest : public Test {
 //						vs.PushBack(Vertex(cRes.SourcePoint1, c));
 //					}
 //				}
-				if (curRN >= res.Count()) {
+				if (curRN >= static_cast<int>(res.Count())) {
 					curRN = res.Count() - 1;
 				}
 				if (curRN < 0) {

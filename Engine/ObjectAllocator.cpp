@@ -156,14 +156,14 @@ namespace DE {
 				for (const ChunkData *cd = _levels[i]._firstChunk; cd; cd = cd->_next) {
 					fprintf(
 						out, "  CHUNK 0x%p\n    ALLOCATED SLOTS = %u\n    PREV = 0x%p\n    NEXT = 0x%p\n",
-						(void*)cd, cd->_allocedSlotNum, (void*)cd->_prev, (void*)cd->_next
+						static_cast<const void*>(cd), cd->_allocedSlotNum, static_cast<void*>(cd->_prev), static_cast<void*>(cd->_next)
 					);
 					const Ptr3 *p3 = (const Ptr3*)(cd + 1);
-					for (size_t j = 0; j < _levels[i]._blockNum; ++j, p3 = (const Ptr3*)((size_t)p3 + sizeof(void*) + _levels[i]._blockSize)) {
+					for (size_t j = 0; j < _levels[i]._blockNum; ++j, p3 = reinterpret_cast<const Ptr3*>(reinterpret_cast<size_t>(p3) + sizeof(void*) + _levels[i]._blockSize)) {
 						if (p3->_pre) {
-							fprintf(out, "      ALLOCATED 0x%p\n        PRE=0x%p\n         ", &(p3->_pos), p3->_pre);
+							fprintf(out, "      ALLOCATED 0x%p\n        PRE=0x%p\n         ", static_cast<const void*>(&(p3->_pos)), p3->_pre);
 						} else {
-							fprintf(out, "      UNALLOCED 0x%p\n        POS=0x%p\n        POST=0x%p\n         ", &(p3->_pos), p3->_pos, p3->_post);
+							fprintf(out, "      UNALLOCED 0x%p\n        POS=0x%p\n        POST=0x%p\n         ", static_cast<const void*>(&(p3->_pos)), p3->_pos, p3->_post);
 						}
 						const unsigned char *arr = reinterpret_cast<const unsigned char *const>(&(p3->_pos));
 
