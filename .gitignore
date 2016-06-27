@@ -8,8 +8,7 @@
 .cproject
 .project
 .settings/
-Debug/
-DebugNoGLEW/
-Demo/
-VSProj/
-WindowdDebug/
+/Debug/
+/DebugNoGLEW/
+/Demo/
+/WindowedDebug/

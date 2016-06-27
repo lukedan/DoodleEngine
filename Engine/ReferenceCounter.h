@@ -47,22 +47,52 @@ namespace DE {
 			private:
 				size_t *_val;
 		};
+		struct SharedPointerData {
+			template <typename T> SharedPointerData(T *ptr = nullptr) : Pointer(ptr) {
+			}
+			template <typename T> SharedPointerData(T *ptr, const std::function<void(T*)> &func) : Pointer(ptr), FreeFunc(func ? [func](void *ptr) {
+				func(static_cast<T*>(ptr));
+			} : std::function<void(void*)>()) {
+			}
+			~SharedPointerData() {
+				if (FreeFunc) {
+					FreeFunc(Pointer);
+				}
+			}
+
+			template <typename T> T *GetPointerAs() const {
+				return static_cast<T*>(Pointer);
+			}
+
+			template <typename T> void SetFreeFunc(const std::function<void(T*)> &func) {
+				if (func) {
+					FreeFunc = [func](void *ptr) {
+						func(static_cast<T*>(ptr));
+					};
+				} else {
+					FreeFunc = nullptr;
+				}
+			}
+
+			void *Pointer = nullptr;
+			std::function<void(void*)> FreeFunc;
+#ifdef DEBUG
+			MemoryMarker<30> _marker {"SharedPointer inner data"};
+#endif
+		};
 		template <typename T> struct SharedPointer {
 			public:
-				SharedPointer(T *ptr = nullptr) : _ptr((T**)GlobalAllocator::Allocate(sizeof(T**))) {
-					(*_ptr) = ptr;
+				SharedPointer(T *ptr = nullptr) : _data(new (GlobalAllocator::Allocate(sizeof(SharedPointerData))) SharedPointerData(ptr)) {
 				}
-				SharedPointer(T *ptr, const std::function<void(T*)> &freeFunc) :
-					_ptr((T**)GlobalAllocator::Allocate(sizeof(T*))), _freeFunc(freeFunc)
-				{
-					(*_ptr) = ptr;
+				SharedPointer(T *ptr, const std::function<void(T*)> &freeFunc) : _data(
+					new (GlobalAllocator::Allocate(sizeof(SharedPointerData))) SharedPointerData(ptr, freeFunc)
+				) {
 				}
-				SharedPointer(const SharedPointer<T>&) = default;
-				SharedPointer<T> &operator =(T *ptr) {
+				template <typename U> SharedPointer &operator =(U *ptr) {
 					SetOwnPointer(ptr);
 					return *this;
 				}
-				SharedPointer<T> &operator =(const SharedPointer<T> &src) {
+				SharedPointer &operator =(const SharedPointer &src) {
 					if (this == &src) {
 						return *this;
 					}
@@ -70,109 +100,104 @@ namespace DE {
 					return *this;
 				}
 				~SharedPointer() {
-					if (_counter.Count() == 1) {
-						if (_freeFunc) {
-							_freeFunc(*_ptr);
-						}
-						GlobalAllocator::Free(_ptr);
-					}
+					OnRefRemoved();
 				}
 
-				T &operator *() {
-					if (!(*_ptr)) {
-						throw InvalidOperationException(_TEXT("trying to dereference nullptr"));
-					}
-					return **_ptr;
-				}
-				const T &operator *() const {
-					if (!(*_ptr)) {
-						throw InvalidOperationException(_TEXT("trying to dereference nullptr"));
-					}
-					return **_ptr;
-				}
-
-				T *operator ->() {
-					return *_ptr;
-				}
-				const T *operator ->() const {
-					return *_ptr;
-				}
-
-				operator T*() {
-					return *_ptr;
-				}
-				operator const T*() const {
-					return *_ptr;
-				}
-
-				T &GetObject() {
-					if (!(*_ptr)) {
-						throw InvalidOperationException(_TEXT("trying to dereference nullptr"));
-					}
-					return **_ptr;
-				}
-				const T &GetObject() const {
-					if (!(*_ptr)) {
-						throw InvalidOperationException(_TEXT("trying to dereference nullptr"));
-					}
-					return **_ptr;
-				}
-				T *GetPointer() {
-					return *_ptr;
-				}
-				const T *GetPointer() const {
-					return *_ptr;
-				}
-				void SetSharedPointer(const SharedPointer<T> &ptr) {
+				void SetSharedPointer(const SharedPointer &ptr) {
 					throw InvalidOperationException(_TEXT("operation not supported"));
 				}
 				void SetSharedPointer(T *ptr) {
-					(*_ptr) = ptr;
+					_data->Pointer = ptr;
 				}
-				void SetOwnPointer(const SharedPointer<T> &ptr) {
-					if (_counter.Count() == 1) {
-						if (_freeFunc) {
-							_freeFunc(*_ptr);
-						}
-						GlobalAllocator::Free(_ptr);
+				void SetOwnPointer(const SharedPointer &ptr) {
+					if (ptr._data == _data) {
+						return;
 					}
-					_counter = ptr._counter;
-					_freeFunc = ptr._freeFunc;
-					_ptr = ptr._ptr;
+					OnRefRemoved();
+					_refc = ptr._refc;
+					_data = ptr._data;
 				}
 				void SetOwnPointer(T *ptr) {
-					if (_counter.Count() == 1) {
-						if (_freeFunc) {
-							_freeFunc(*_ptr);
-						}
-						GlobalAllocator::Free(_ptr);
-					}
-					_counter = ReferenceCounter();
-					_ptr = (T**)GlobalAllocator::Allocate(sizeof(T**));
-					(*_ptr) = ptr;
+					OnRefRemoved();
+					_refc = ReferenceCounter();
+					_data = new (GlobalAllocator::Allocate(sizeof(SharedPointerData))) SharedPointerData(ptr);
+				}
+				void SetSharedFreeFunc(const std::function<void(T*)> &func) {
+					_data->SetFreeFunc(func);
+				}
+				std::function<void(void*)> GetSharedFreeFunc() const {
+					return _data->FreeFunc;
 				}
 
-				void ManuallyIncrease(size_t val) {
-					_counter.ManuallyIncrease(val);
+				T &GetObject() const {
+					if (_data->Pointer) {
+						return *_data->GetPointerAs<T>();
+					}
+					throw InvalidOperationException(_TEXT("dereferencing nullptr"));
 				}
-				void ManuallyDecrease(size_t val) {
-					_counter.ManuallyDecrease(val);
+				T &operator *() const {
+					return GetObject();
+				}
+				T *GetPointer() const {
+					return _data->GetPointerAs<T>();
+				}
+				operator T*() const {
+					return GetPointer();
+				}
+				T *operator ->() const {
+					return GetPointer();
 				}
 
 				size_t Count() const {
-					return _counter.Count();
+					return _refc.Count();
+				}
+				void ManuallyIncrease(size_t val = 1) {
+					_refc.ManuallyIncrease(val);
+				}
+				void ManuallyDecrease(size_t val = 1) {
+					_refc.ManuallyDecrease(val);
 				}
 
-				std::function<void(T*)> &AutoFreeFunction() {
-					return _freeFunc;
+				template <typename U> SharedPointer<U> CastTo() const {
+					return SharedPointer<U>(_refc, _data);
 				}
-				const std::function<void(T*)> &AutoFreeFunction() const {
-					return _freeFunc;
+				template <typename U> explicit operator SharedPointer<U>() const {
+					return CastTo<T>();
 				}
-			private:
-				ReferenceCounter _counter;
-				T **_ptr = nullptr;
-				std::function<void(T*)> _freeFunc;
+			protected:
+				ReferenceCounter _refc;
+				SharedPointerData *_data;
+
+				SharedPointer(const ReferenceCounter &refc, SharedPointerData *data) : _refc(refc), _data(data) {
+				}
+
+				void OnRefRemoved() {
+					if (_refc.Count() == 1) {
+						_data->~SharedPointerData();
+						GlobalAllocator::Free(_data);
+					}
+				}
 		};
+		// function below about shared objects all use DE::Core::GlobalAllocator
+		template <typename T, typename ...Args> inline SharedPointer<T> CreateSharedObject(Args&&... args) {
+			T *obj = new (GlobalAllocator::Allocate(sizeof(T))) T(std::forward<Args>(args)...);
+			return SharedPointer<T>(obj, [](T *ptr) {
+				ptr->~T();
+				GlobalAllocator::Free(ptr);
+			});
+		}
+		template <typename T, typename RealType, typename ...Args> inline SharedPointer<T> CreateSharedObjectAs(Args&&... args) {
+			T *obj = static_cast<T*>(new (GlobalAllocator::Allocate(sizeof(RealType))) RealType(std::forward<Args>(args)...));
+			return SharedPointer<T>(obj, [](T *ptr) {
+				ptr->~T();
+				GlobalAllocator::Free(ptr);
+			});
+		}
+		template <typename T> inline SharedPointer<T> MakeShared(T *obj) {
+			return SharedPointer<T>(obj, [](T *ptr) {
+				ptr->~T();
+				GlobalAllocator::Free(ptr);
+			});
+		}
 	}
 }

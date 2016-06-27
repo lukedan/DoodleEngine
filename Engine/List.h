@@ -27,41 +27,17 @@ namespace DE {
 				public:
 					constexpr static size_t MinCapicy = 5;
 
-					List() :
-						_arr(
-							(T*)GlobalAllocator::Allocate(sizeof(T) * MinCapicy),
-							GetMyAutoFreeFunction()
-						)
-					{
-					}
+					List() = default;
 					List(const T &obj, size_t count) : List() {
 						PushBack(obj, count);
 					}
-					List(const List<T, DirectMemoryAccess> &src) : _count(src._count), _capicy(src._capicy), _arr(src._arr) {
-						_arr.AutoFreeFunction() = GetMyAutoFreeFunction();
-					}
-					List<T, DirectMemoryAccess> &operator =(const List<T, DirectMemoryAccess> &src) {
-						if (this == &src) {
-							return *this;
-						}
-						_arr = src._arr;
-						_count = src._count;
-						_capicy = src._capicy;
-						_arr.AutoFreeFunction() = GetMyAutoFreeFunction();
-						return *this;
-					}
 					virtual ~List() {
-#ifdef STRICT_RUNTIME_CHECK
-						if (!_arr.AutoFreeFunction()) {
-							throw InvalidOperationException(_TEXT("bug here"));
-						}
-#endif
 					}
 
 					void PushBack(const T &obj, size_t count = 1) {
-						size_t oc = _count;
+						size_t oc = Count();
 						IncreaseCount(count);
-						for (T *cur = _arr + oc, *tar = cur + count; cur != tar; ++cur) {
+						for (T *cur = _data->GetArray() + oc, *tar = cur + count; cur != tar; ++cur) {
 							if (DirectMemoryAccess) {
 								memcpy(cur, &obj, sizeof(T));
 							} else {
@@ -73,9 +49,12 @@ namespace DE {
 						PushBackRange(*range, range.Count());
 					}
 					void PushBackRange(const T *range, size_t count) {
-						size_t oc = _count;
+						if (count == 0) {
+							return;
+						}
+						size_t oc = Count();
 						IncreaseCount(count);
-						T *cur = _arr + oc;
+						T *cur = _data->GetArray() + oc;
 						if (DirectMemoryAccess) {
 							memcpy(cur, range, sizeof(T) * count);
 						} else {
@@ -95,59 +74,59 @@ namespace DE {
 
 					T PopBack() {
 #ifdef STRICT_RUNTIME_CHECK
-						if (_count == 0) {
+						if (Count() == 0) {
 							throw InvalidOperationException(_TEXT("the List is empty"));
 						}
 #endif
+						CheckShrink();
 						if (DirectMemoryAccess) {
-							DecreaseCount(1);
-							return _arr[_count];
+							--_data->Count;
+							return _data->GetArray()[_data->Count];
 						}
-						T result = _arr[_count - 1];
-						(_arr + (_count - 1))->~T();
-						DecreaseCount(1);
+						T result = _data->GetArray()[--_data->Count];
+						(_data->GetArray() + _data->Count)->~T();
 						return result;
 					}
 
 					void Swap(size_t a, size_t b) {
 #ifdef STRICT_RUNTIME_CHECK
-						if (a >= _count || b >= _count) {
+						if (a >= Count() || b >= Count()) {
 							throw InvalidArgumentException(_TEXT("index overflow"));
 						}
 #endif
 						OnChanged();
 						if (DirectMemoryAccess) {
-							T *tmp = (T*)GlobalAllocator::Allocate(sizeof(T)), *aad = _arr + a, *bad = _arr + b;
+							T *tmp = (T*)GlobalAllocator::Allocate(sizeof(T)), *aad = _data->GetArray() + a, *bad = _data->GetArray() + b;
 							memcpy(tmp, aad, sizeof(T));
 							memcpy(aad, bad, sizeof(T));
 							memcpy(bad, tmp, sizeof(T));
 							GlobalAllocator::Free(tmp);
 						} else {
-							T &aad = _arr[a], &bad = _arr[b], tempObj = aad;
+							T &aad = _data->GetArray()[a], &bad = _data->GetArray()[b], tempObj = aad;
 							aad = bad;
 							bad = tempObj;
 						}
 					}
 					void SwapToBack(size_t index) {
-						Swap(index, _count - 1);
+						Swap(index, _data->Count - 1);
 					}
 
 					T &At(size_t index) {
 #ifdef STRICT_RUNTIME_CHECK
-						if (index >= _count) {
+						if (index >= Count()) {
 							throw InvalidArgumentException(_TEXT("index overflow"));
 						}
 #endif
 						OnChanged();
-						return _arr[index];
+						return _data->GetArray()[index];
 					}
 					const T &At(size_t index) const {
 #ifdef STRICT_RUNTIME_CHECK
-						if (index >= _count) {
+						if (index >= Count()) {
 							throw InvalidArgumentException(_TEXT("index overflow"));
 						}
 #endif
-						return _arr[index];
+						return _data->GetArray()[index];
 					}
 					T &operator [](size_t index) {
 						return At(index);
@@ -162,41 +141,44 @@ namespace DE {
 						return At(0);
 					}
 					T &Last() {
-						return At(_count - 1);
+						return At(_data->Count - 1);
 					}
 					const T &Last() const {
-						return At(_count - 1);
+						return At(_data->Count - 1);
 					}
 
 					void Remove(size_t start, size_t count = 1) {
+						if (count == 0) {
+							return;
+						}
 #ifdef STRICT_RUNTIME_CHECK
-						if (start + count > _count) {
+						if (start + count > Count()) {
 							throw InvalidArgumentException(_TEXT("index overflow"));
 						}
 #endif
-						OnChanged();
+						CheckShrink();
 						if (DirectMemoryAccess) {
-							size_t sz = (_count - start - count) * sizeof(T);
+							size_t sz = (_data->Count - start - count) * sizeof(T);
 							if (sz > 0) {
 								T *buf = (T*)GlobalAllocator::Allocate(sz);
-								memcpy(buf, _arr + start + count, sz);
-								memcpy(_arr + start, buf, sz);
+								memcpy(buf, _data->GetArray() + start + count, sz);
+								memcpy(_data->GetArray() + start, buf, sz);
 								GlobalAllocator::Free(buf);
 							}
 						} else {
-							T *cur = _arr + start;
-							for (T *tar = cur + count, *fin = _arr + _count; tar != fin; ++cur, ++tar) {
+							T *cur = _data->GetArray() + start;
+							for (T *tar = cur + count, *fin = _data->GetArray() + _data->Count; tar != fin; ++cur, ++tar) {
 								(*cur) = (*tar);
 							}
-							for (T *tar = _arr + _count; cur != tar; ++cur) {
+							for (T *tar = _data->GetArray() + _data->Count; cur != tar; ++cur) {
 								cur->~T();
 							}
 						}
-						DecreaseCount(count);
+						_data->Count -= count;
 					}
 					bool TryRemoveFirst(const T &obj) {
 						size_t index = FindFirst(obj);
-						if (index >= _count) {
+						if (index >= _data->Count) {
 							return false;
 						}
 						Remove(index);
@@ -204,38 +186,38 @@ namespace DE {
 					}
 					bool TryRemoveLast(const T &obj) {
 						size_t index = FindLast(obj);
-						if (index >= _count) {
+						if (index >= _data->Count) {
 							return false;
 						}
 						Remove(index);
 						return true;
 					}
 
-					void Insert(size_t index, const T &obj) {
-						Insert(index, &obj, 1);
-					}
 					void Insert(size_t index, const T *objs, size_t count) {
-						size_t oc = _count;
+						if (count == 0) {
+							return;
+						}
+						size_t oc = Count();
 						IncreaseCount(count);
 						if (DirectMemoryAccess) {
 							size_t sz = (oc - index) * sizeof(T);
 							if (sz > 0) {
 								T *buf = (T*)GlobalAllocator::Allocate(sz);
-								memcpy(buf, _arr + index, sz);
-								memcpy(_arr + index + count, buf, sz);
+								memcpy(buf, _data->GetArray() + index, sz);
+								memcpy(_data->GetArray() + index + count, buf, sz);
 								GlobalAllocator::Free(buf);
-								memcpy(_arr + index, objs, sizeof(T) * count);
+								memcpy(_data->GetArray() + index, objs, sizeof(T) * count);
 							}
 						} else {
-							T *add = _arr + index + count, *spl = _arr + oc;
-							for (T *cur = _arr + _count, *src = spl; cur != add; ) {
+							T *add = _data->GetArray() + index + count, *spl = _data->GetArray() + oc;
+							for (T *cur = _data->GetArray() + _data->Count, *src = spl; cur != add; ) {
 								if ((--cur) < spl) {
 									(*cur) = *(--src);
 								} else {
 									new (cur) T(*(--src));
 								}
 							}
-							T *cur = _arr + index;
+							T *cur = _data->GetArray() + index;
 							for (const T *src = objs; cur != add; ++cur, ++src) {
 								if (cur < spl) {
 									(*cur) = (*src);
@@ -245,12 +227,18 @@ namespace DE {
 							}
 						}
 					}
+					void Insert(size_t index, const T &obj) {
+						Insert(index, &obj, 1);
+					}
 					void Insert(size_t index, const List<T, DirectMemoryAccess> &objs) {
 						Insert(*objs, index, objs.Count());
 					}
 
 					template <typename Predicate = EqualityPredicate<T>> bool Contains(const T &target) const {
-						for (const T *cur = _arr, *fin = cur + _count; cur != fin; ++cur) {
+						if (Count() == 0) {
+							return false;
+						}
+						for (const T *cur = _data->GetArray(), *fin = cur + _data->Count; cur != fin; ++cur) {
 							if (Predicate::Examine(target, *cur)) {
 								return true;
 							}
@@ -258,9 +246,12 @@ namespace DE {
 						return false;
 					}
 					template <typename Predicate = EqualityPredicate<T>> size_t FindFirst(const T &target) const {
+						if (Count() == 0) {
+							return 0;
+						}
 						size_t result = 0;
-						const T *fin = _arr + _count;
-						for (const T *cur = _arr; cur != fin; ++cur, ++result) {
+						const T *fin = _data->GetArray() + _data->Count;
+						for (const T *cur = _data->GetArray(); cur != fin; ++cur, ++result) {
 							if (Predicate::Examine(target, *cur)) {
 								break;
 							}
@@ -268,24 +259,29 @@ namespace DE {
 						return result;
 					}
 					template <typename Predicate = EqualityPredicate<T>> size_t FindLast(const T &target) const {
-						size_t result = _count;
-						const T *fin = _arr;
-						for (const T *cur = _arr + _count; cur != fin; --result) {
+						if (Count() == 0) {
+							return 0;
+						}
+						size_t result = _data->Count;
+						const T *fin = _data->GetArray();
+						for (const T *cur = _data->GetArray() + _data->Count; cur != fin; --result) {
 							if (Predicate::Examine(target, *(--cur))) {
 								return --result;
 							}
 						}
-						return _count;
+						return _data->Count;
 					}
 
 					void ForEach(const std::function<bool(T&)> &func) {
 #ifdef STRICT_RUNTIME_CHECK
 						++_inFE;
 #endif
-						T *fin = _arr + _count;
-						for (T *cur = _arr; cur != fin; ++cur) {
-							if (!func(*cur)) {
-								break;
+						if (_data) {
+							T *fin = _data->GetArray() + _data->Count;
+							for (T *cur = _data->GetArray(); cur != fin; ++cur) {
+								if (!func(*cur)) {
+									break;
+								}
 							}
 						}
 #ifdef STRICT_RUNTIME_CHECK
@@ -296,10 +292,12 @@ namespace DE {
 #ifdef STRICT_RUNTIME_CHECK
 						++_inFE;
 #endif
-						const T *fin = _arr + _count;
-						for (const T *cur = _arr; cur != fin; ++cur) {
-							if (!func(*cur)) {
-								break;
+						if (_data) {
+							const T *fin = _data->GetArray() + _data->Count;
+							for (const T *cur = _data->GetArray(); cur != fin; ++cur) {
+								if (!func(*cur)) {
+									break;
+								}
 							}
 						}
 #ifdef STRICT_RUNTIME_CHECK
@@ -307,44 +305,54 @@ namespace DE {
 #endif
 					}
 
-					List<T, DirectMemoryAccess> SubSequence(size_t start) const {
-						return SubSequence(start, _count - start);
+					List SubSequence(size_t start) const {
+						return SubSequence(start, _data->Count - start);
 					}
-					List<T, DirectMemoryAccess> SubSequence(size_t start, size_t count) const {
+					List SubSequence(size_t start, size_t count) const {
+						if (count == 0) {
+							return List();
+						}
 #ifdef STRICT_RUNTIME_CHECK
-						if (start > _count || start + count > _count) {
+						if (start + count > Count()) {
 							throw InvalidArgumentException(_TEXT("index overflow"));
 						}
 #endif
-						List<T, DirectMemoryAccess> result;
-						result.PushBackRange(_arr + start, count);
+						List result;
+						result.PushBackRange(_data->GetArray() + start, count);
 						return result;
 					}
 
 					void Clear() {
-						_arr = (T*)GlobalAllocator::Allocate(sizeof(T) * MinCapicy);
-						_capicy = MinCapicy;
-						_count = 0;
+						_data = nullptr;
 					}
 
 					T *operator *() {
-						return _arr;
+						if (_data) {
+							return _data->GetArray();
+						}
+						return nullptr;
 					}
 					const T *operator *() const {
-						return _arr;
+						if (_data) {
+							return _data->GetArray();
+						}
+						return nullptr;
 					}
 
 					friend bool operator ==(const List &lhs, const List &rhs) {
-						if (lhs._count != rhs._count) {
+						if (lhs.Count() != rhs.Count()) {
 							return false;
 						}
-						if (static_cast<const T*>(lhs._arr) == static_cast<const T*>(rhs._arr)) {
+						if (lhs.Count() == 0) {
+							return true;
+						}
+						if (lhs._data->GetArray() == rhs._data->GetArray()) {
 							return true;
 						}
 						if (DirectMemoryAccess) {
-							return memcmp(lhs._arr, rhs._arr, sizeof(T) * lhs._count) == 0;
+							return memcmp(lhs._data->GetArray(), rhs._data->GetArray(), sizeof(T) * lhs._data->Count) == 0;
 						}
-						for (const T *lc = lhs._arr, *le = lc + lhs._count, *rc = rhs._arr; lc != le; ++lc, ++rc) {
+						for (const T *lc = lhs._data->GetArray(), *le = lc + lhs._data->Count, *rc = rhs._data->GetArray(); lc != le; ++lc, ++rc) {
 							if ((*lc) != (*rc)) {
 								return false;
 							}
@@ -356,8 +364,14 @@ namespace DE {
 					}
 
 					friend bool operator >(const List &lhs, const List &rhs) {
+						if (lhs.Count() == 0) {
+							return false;
+						}
+						if (rhs.Count() == 0) {
+							return true;
+						}
 						for (
-							const T *lc = lhs._arr, *le = lc + lhs._count, *rc = rhs._arr, *re = rc + rhs._count;
+							const T *lc = lhs._data->GetArray(), *le = lc + lhs._data->Count, *rc = rhs._data->GetArray(), *re = rc + rhs._data->Count;
 							lc != le && rc != re;
 							++lc, ++rc
 						) {
@@ -389,39 +403,46 @@ namespace DE {
 					}
 
 					void Reverse() {
-						for (size_t i = 0; i * 2 + 1 < _count; ++i) {
-							Swap(i, _count - i - 1);
+						if (_data) {
+							for (size_t i = 0; i * 2 + 1 < _data->Count; ++i) {
+								Swap(i, _data->Count - i - 1);
+							}
 						}
 					}
 
 					size_t Count() const {
-						return _count;
+						if (_data) {
+							return _data->Count;
+						}
+						return 0;
 					}
 					size_t Capicy() const {
-						return _capicy;
+						if (_data) {
+							return _data->Capicy;
+						}
+						return 0;
 					}
 				private:
 					void OnChanged() {
-						if (_arr.Count() > 1) {
-							ChangeCapicy(_capicy);
+						if (_data.Count() > 1) {
+							ChangeCapicy(_data->Capicy);
 						}
 					}
-					void DecreaseCount(size_t delta) {
+					void CheckShrink() {
 #ifdef STRICT_RUNTIME_CHECK
 						if (_inFE > 0) {
 							throw InvalidOperationException(_TEXT("the list is currently being enumerated, cannot change its content"));
 						}
 #endif
-						if (_capicy > MinCapicy && _count < (_capicy>>2)) {
-							size_t newCap = _capicy>>1;
-							while (newCap > MinCapicy && _count < (newCap>>2)) {
+						if (_data->Capicy > MinCapicy && _data->Count < (_data->Capicy >> 2)) {
+							size_t newCap = _data->Capicy >> 1;
+							while (newCap > MinCapicy && _data->Count < (newCap >> 2)) {
 								newCap >>= 1;
 							}
 							ChangeCapicy(newCap);
 						} else {
 							OnChanged();
 						}
-						_count -= delta;
 					}
 					void IncreaseCount(size_t delta) {
 #ifdef STRICT_RUNTIME_CHECK
@@ -429,9 +450,9 @@ namespace DE {
 							throw InvalidOperationException(_TEXT("the list is currently being enumerated, cannot change its content"));
 						}
 #endif
-						size_t newC = _count + delta;
-						if (newC > _capicy) {
-							size_t newCap = _capicy<<1;
+						size_t newC = Count() + delta;
+						if (newC > Capicy()) {
+							size_t newCap = (_data ? _data->Capicy << 1 : MinCapicy);
 							while (newCap < newC) {
 								newCap <<= 1;
 							}
@@ -439,36 +460,60 @@ namespace DE {
 						} else {
 							OnChanged();
 						}
-						_count += delta;
+						_data->Count += delta;
 					}
 					void ChangeCapicy(size_t to) {
-						_capicy = to;
-						T *newArr = (T*)GlobalAllocator::Allocate(sizeof(T) * _capicy);
-						if (DirectMemoryAccess) {
-							memcpy(newArr, _arr, sizeof(T) * _count);
-						} else {
-							T *lst = _arr + _count;
-							for (T *cur = newArr + _count; cur != newArr; ) {
-								new (--cur) T(*(--lst));
+						_ListData *nd = CreateListData(to);
+						if (_data) {
+							nd->Count = _data->Count;
+							if (DirectMemoryAccess) {
+								memcpy(nd->GetArray(), _data->GetArray(), sizeof(T) * _data->Count);
+							} else {
+								T *lst = _data->GetArray() + _data->Count;
+								for (T *cur = nd->GetArray() + _data->Count; cur != nd->GetArray(); ) {
+									new (--cur) T(*(--lst));
+								}
 							}
 						}
-						_arr = newArr;
-					}
-					std::function<void(T*)> GetMyAutoFreeFunction() const {
-						return [this](T *ptr) {
-							if (ptr) {
-								if (!DirectMemoryAccess) {
-									for (T *cur = ptr + _count; cur != ptr; ) {
-										(--cur)->~T();
-									}
-								}
-								GlobalAllocator::Free(ptr);
-							}
-						};
+						_data = MakeShared(nd);
 					}
 
-					size_t _count = 0, _capicy = MinCapicy;
-					SharedPointer<T> _arr;
+					struct _ListData {
+						_ListData() = default;
+						_ListData(size_t cap) : Capicy(cap) {
+						}
+						~_ListData() {
+							if (!DirectMemoryAccess) {
+								for (
+									T *cur = GetArray(), *end = cur + Count;
+									cur != end;
+									++cur
+								) {
+									cur->~T();
+								}
+							}
+						}
+
+						size_t Count = 0, Capicy = MinCapicy;
+#ifdef DEBUG
+						Core::MemoryMarker<30> _marker{"ListData inner object"};
+#endif
+
+						T *GetArray() {
+							return reinterpret_cast<T*>(this + 1);
+						}
+					};
+					inline static size_t GetListDataSize(size_t capicy) {
+						return sizeof(_ListData) + sizeof(T) * capicy;
+					}
+					inline static size_t GetListDataSize(const _ListData *data) {
+						return GetListDataSize(data->Capicy);
+					}
+					inline static _ListData *CreateListData(size_t capicy) {
+						return new (GlobalAllocator::Allocate(GetListDataSize(capicy))) _ListData(capicy);
+					}
+
+					SharedPointer<_ListData> _data;
 #ifdef STRICT_RUNTIME_CHECK
 					mutable size_t _inFE = 0;
 #endif
