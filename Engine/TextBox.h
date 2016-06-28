@@ -131,7 +131,7 @@ namespace DE {
 						return _multiLine;
 					}
 				};
-				Core::GetSetProperty<bool> WrapText { // TODO implement automatic content fitting for ScrollView
+				Core::GetSetProperty<bool> WrapText {
 					[this](bool v) {
 						if (_wrapText != v) {
 							_wrapText = v;
@@ -247,7 +247,7 @@ namespace DE {
 					return rawResult * _lbl.Content().Scale;
 				}
 
-				void ResetChildrenLayout() override { // FIXME says 'pure virtual function called' when _wrapText set to true
+				void ResetChildrenLayout() override {
 					if (!_ssbs) {
 						if (_wrapText) { // make sure the width of the label doesn't exceed the width of visible area
 							if (GetWorld()) {
@@ -367,7 +367,22 @@ namespace DE {
 							_insert = !_insert;
 							break;
 						}
-						// TODO VK_PRIOR(pageup) and VK_NEXT(pagedown)
+						case VK_PRIOR: {
+							Core::Math::Vector2 pos;
+							size_t line = _lbl.Content().GetLineOfCaret(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+							pos.X = _cbase + _lbl.Content().LayoutRectangle.Left;
+							pos.Y = _lbl.Content().GetLineTop(line) + 0.5 * _lbl.Content().GetLineHeight(line) - GetVisibleRange().Height();
+							SetCaretPositionInfo(_lbl.Content().HitTestForCaret(pos), GetMoveTypeWithShift(false));
+							break;
+						}
+						case VK_NEXT: {
+							Core::Math::Vector2 pos;
+							size_t line = _lbl.Content().GetLineOfCaret(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+							pos.X = _cbase + _lbl.Content().LayoutRectangle.Left;
+							pos.Y = _lbl.Content().GetLineTop(line) + 0.5 * _lbl.Content().GetLineHeight(line) + GetVisibleRange().Height();
+							SetCaretPositionInfo(_lbl.Content().HitTestForCaret(pos), GetMoveTypeWithShift(false));
+							break;
+						}
 						case VK_HOME: {
 							size_t nc;
 							double nbase;

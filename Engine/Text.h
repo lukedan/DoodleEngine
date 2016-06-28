@@ -158,7 +158,7 @@ namespace DE {
 					double GetLineBottom(size_t) const override;
 				private:
 					static void DoCache(const BasicText&, BasicTextFormatCache&);
-					static void DoRender(const BasicTextFormatCache&, const BasicText&, Renderer&, bool);
+					static void DoRender(const BasicTextFormatCache&, const BasicText&, Renderer&);
 					static Core::Collections::List<Core::Math::Rectangle> DoGetSelectionRegion(const BasicTextFormatCache&, const BasicText&, size_t, size_t);
 					static void DoHitTest(const BasicTextFormatCache&, const BasicText&, const Core::Math::Vector2&, size_t&, size_t&);
 					static Core::Math::Vector2 DoGetRelativeCaretPosition(const BasicTextFormatCache&, const BasicText&, size_t, bool, double);
@@ -174,12 +174,6 @@ namespace DE {
 
 			class StreamedRichText : public Text {
 				public:
-					struct TextFormatInfo {
-						double Scale = 1.0, LocalVerticalPosition = 0.5;
-						const Font *Font = nullptr;
-						Core::Color Color;
-					};
-
 					enum class ChangeType {
 						Invalid,
 						Scale,
@@ -205,6 +199,41 @@ namespace DE {
 						ChangeParameters Parameters;
 					};
 
+					struct TextFormatInfo {
+						double Scale = 1.0, LocalVerticalPosition = 0.5;
+						const Font *Font = nullptr;
+						Core::Color Color;
+
+						void ApplyChange(const ChangeInfo &change) {
+							switch (change.Type) {
+								case ChangeType::Scale: {
+									Scale = change.Parameters.NewScale;
+									break;
+								}
+								case ChangeType::Color: {
+									Color = Core::Color(
+										change.Parameters.NewColor.R,
+										change.Parameters.NewColor.G,
+										change.Parameters.NewColor.B,
+										change.Parameters.NewColor.A
+									);
+									break;
+								}
+								case ChangeType::Font: {
+									Font = change.Parameters.NewFont;
+									break;
+								}
+								case ChangeType::LocalVerticalPosition: {
+									LocalVerticalPosition = change.Parameters.LocalVerticalPosition;
+									break;
+								}
+								default: {
+									break;
+								}
+							}
+						}
+					};
+
 					struct StreamedRichTextFormatCache {
 						Core::Collections::List<double> LineLengths, LineHeights;
 						Core::Collections::List<size_t> LineBreaks;
@@ -212,7 +241,7 @@ namespace DE {
 					};
 
 					Core::String Content;
-					Core::Math::Rectangle LayoutRectangle;
+					Core::Math::Rectangle LayoutRectangle, Padding {-2.0, -2.0, 4.0, 4.0};
 					Core::Collections::List<ChangeInfo> Changes;
 					LineWrapType WrapType;
 
@@ -251,8 +280,40 @@ namespace DE {
 						Content += text;
 						return *this;
 					}
+
+					Core::Math::Vector2 GetSize() const override;
+
+					Core::Collections::List<Core::Math::Rectangle> GetSelectionRegion(size_t, size_t) const override;
+
+					size_t HitTestForCaret(const Core::Math::Vector2&) const override;
+					size_t HitTestForChar(const Core::Math::Vector2&) const override;
+					void HitTest(const Core::Math::Vector2&, size_t&, size_t&) const override;
+
+					Core::Math::Vector2 GetCaretPosition(size_t) const override;
+					Core::Math::Vector2 GetCaretPosition(size_t, double) const override; // with baseline information
+					double GetCaretHeight(size_t) const override;
+					void GetCaretInfo(size_t, Core::Math::Vector2&, double&) const override;
+					void GetCaretInfo(size_t, double, Core::Math::Vector2&, double&) const override;
+
+					size_t GetLineOfCaret(size_t) const override;
+					size_t GetLineOfCaret(size_t, double) const override;
+					size_t GetLineNumber() const override;
+
+					void GetLineBeginning(size_t, size_t&, double&) const override;
+					void GetLineCursorEnding(size_t, size_t&, double&) const override;
+					void GetLineEnding(size_t, size_t&, double&) const override;
+					double GetLineTop(size_t) const override;
+					double GetLineHeight(size_t) const override;
+					double GetLineBottom(size_t line) const {
+						return GetLineTop(line) + GetLineHeight(line);
+					}
+
+					virtual void Render(Renderer&) const = 0;
 				protected:
 					static void DoCache(const StreamedRichText&, StreamedRichTextFormatCache&);
+					static Core::Math::Vector2 DoGetSize(const StreamedRichTextFormatCache&, const StreamedRichText&);
+					static void DoRender(const StreamedRichTextFormatCache&, const StreamedRichText&, Renderer&, bool);
+					static Core::Collections::List<Core::Math::Rectangle> DoGetSeletionRegion(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, size_t);
 			};
 			namespace Streaming {
 				struct NewScale {

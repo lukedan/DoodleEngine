@@ -93,75 +93,65 @@ namespace DE {
 				const BasicText &txt,
 				BasicTextFormatCache &cache
 			) {
+#define BASICTEXT_SET_LASTBREAK_TO_CURRENT { lbw = curw; lbid = i; }
+#define BASICTEXT_ON_NEWLINE(WIDTH) { cache.LineLengths.PushBack(WIDTH); if (WIDTH > cache.Size.X) { cache.Size.X = WIDTH; } }
 				cache.LineBreaks.Clear();
 				cache.LineLengths.Clear();
 				cache.Size = Vector2();
-				if (txt.Font == nullptr) {
+
+				if (!txt.Font) {
 					return;
 				}
-				bool hasBreakable = false;
-				size_t lastBreakable = 0;
-				double curLineLen = 0.0, lastBreakableLen = 0.0;
-				CharData curData;
+				double lbw = 0.0, curw = 0.0;
+				bool hasBreakable = false, hasBreakableChar = false;
+				size_t lbid = 0;
 				for (size_t i = 0; i < txt.Content.Length(); ++i) {
-					curData = txt.Font->GetData(txt.Content[i]);
-					curLineLen += curData.Advance * txt.Scale;
-					if (curLineLen + txt.Padding.Width() > txt.LayoutRectangle.Width() && i != (cache.LineBreaks.Count() == 0 ? 0 : cache.LineBreaks.Last() + 1)) {
-						if (!(txt.WrapType == LineWrapType::WrapWords && !hasBreakable) && txt.WrapType != LineWrapType::NoWrap) {
-							// if the current line can be wrapped
-							if (txt.WrapType == LineWrapType::Wrap || (txt.WrapType == LineWrapType::WrapWordsNoOverflow && !hasBreakable)) {
-								// coerce wrapping
-								if (txt.Content[i] == _TEXT('\n')) {
-									lastBreakable = i - 2;
-									lastBreakableLen = curLineLen - (curData.Advance + txt.Font->GetData(txt.Content[i - 1]).Advance) * txt.Scale;
-								} else {
-									lastBreakable = i - 1;
-									lastBreakableLen = curLineLen - curData.Advance * txt.Scale;
-								}
-							}
-							cache.LineBreaks.PushBack(lastBreakable);
-							cache.LineLengths.PushBack(lastBreakableLen);
-							if (lastBreakableLen > cache.Size.X) {
-								cache.Size.X = lastBreakableLen;
-							}
-							hasBreakable = false;
-							curLineLen = 0.0;
-							i = lastBreakable;
-							continue;
+					TCHAR curc = txt.Content[i];
+					const CharData &cData = txt.Font->GetData(curc);
+					curw += cData.Advance;
+					bool breaknow = curw > txt.LayoutRectangle.Width() - txt.Padding.Width() && hasBreakable;
+					if (curc == _TEXT('\n') && !breaknow) {
+						breaknow = true;
+						BASICTEXT_SET_LASTBREAK_TO_CURRENT;
+					}
+					if (breaknow) {
+						cache.LineBreaks.PushBack(lbid);
+						BASICTEXT_ON_NEWLINE(lbw);
+						// restore last break scene
+						i = lbid;
+						hasBreakable = hasBreakableChar = false;
+						curw = 0.0;
+						continue;
+					}
+					// curc != '\n'
+					bool curBreakable = (txt.WrapType == LineWrapType::Wrap);
+					if ( // TODO formality
+						(txt.Content[i] >= _TEXT('a') && txt.Content[i] <= _TEXT('z')) ||
+						(txt.Content[i] >= _TEXT('A') && txt.Content[i] <= _TEXT('Z'))
+					) { // not a breakable character
+						if (!hasBreakableChar && txt.WrapType == LineWrapType::WrapWordsNoOverflow) {
+							curBreakable = true;
+						}
+					} else {
+						if (txt.WrapType != LineWrapType::NoWrap) {
+							curBreakable = true;
+							hasBreakableChar = true;
 						}
 					}
-					switch (txt.Content[i]) {
-						case _TEXT('\n'): {
-							cache.LineBreaks.PushBack(i);
-							cache.LineLengths.PushBack(curLineLen);
-							if (curLineLen > cache.Size.X) {
-								cache.Size.X = curLineLen;
-							}
-							hasBreakable = false;
-							curLineLen = 0.0;
-							break;
-						}
-						default: {
-							TCHAR curc = txt.Content[i];
-							if (!(
-								(curc >= _TEXT('A') && curc <= _TEXT('Z')) ||
-								(curc >= _TEXT('a') && curc <= _TEXT('z')) // TODO substitute this with a formal 'is a breakable char' condition
-							)) {
-								hasBreakable = true;
-								lastBreakable = i;
-								lastBreakableLen = curLineLen;
-							}
-							break;
-						}
+					if (i + 1 < txt.Content.Length() && txt.Content[i + 1] == _TEXT('\n')) {
+						curBreakable = false;
+					}
+					if (curBreakable) {
+						hasBreakable = true;
+						BASICTEXT_SET_LASTBREAK_TO_CURRENT;
 					}
 				}
-				cache.LineLengths.PushBack(curLineLen);
-				if (curLineLen > cache.Size.X) {
-					cache.Size.X = curLineLen;
-				}
-				cache.Size.Y = cache.LineLengths.Count() * txt.Font->GetHeight() * txt.Scale;
+				BASICTEXT_ON_NEWLINE(curw);
+				cache.Size.Y = cache.LineLengths.Count() * txt.Font->GetHeight();
+#undef BASICTEXT_SET_LASTBREAK_TO_CURRENT
+#undef BASICTEXT_ON_NEWLINE
 			}
-			void BasicText::DoRender(const BasicTextFormatCache &cc, const BasicText &txt, Renderer &r, bool roundToInt) {
+			void BasicText::DoRender(const BasicTextFormatCache &cc, const BasicText &txt, Renderer &r) {
 				if (r.GetContext() == nullptr || txt.Font == nullptr || txt.Content.Empty() || cc.LineLengths.Count() == 0) {
 					return;
 				}
@@ -177,7 +167,7 @@ namespace DE {
 					const CharData &data = txt.Font->GetData(txt.Content[i]);
 					AtlasTexture ctex = txt.Font->GetTextureInfo(data.Character);
 					Vector2 aRPos = pos;
-					if (roundToInt) {
+					if (txt.RoundToInteger) {
 						aRPos = Vector2(round(pos.X), round(pos.Y));
 					}
 					bool drd = true;
@@ -436,7 +426,7 @@ namespace DE {
 #define BASICTEXT_NEEDCACHE_FUNC_IMPL(FUNC, ...) BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, *this, __VA_ARGS__)
 #define BASICTEXT_NEEDCACHE_FUNC_IMPL_NOPARAM(FUNC) BASICTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, *this)
 			void BasicText::Render(Renderer &r) const {
-				BASICTEXT_NEEDCACHE_FUNC_IMPL(DoRender, r, RoundToInteger);
+				BASICTEXT_NEEDCACHE_FUNC_IMPL(DoRender, r);
 			}
 			Core::Collections::List<Core::Math::Rectangle> BasicText::GetSelectionRegion(size_t start, size_t end) const {
 				if (start > Content.Length() || end > Content.Length() || start > end) {
@@ -495,62 +485,96 @@ namespace DE {
 #undef BASICTEXT_NEEDCACHE_FUNC_IMPL
 #undef BASICTEXT_NEEDCACHE_FUNC_IMPL_NOPARAM
 
-//			void StreamedRichText::DoCache(const StreamedRichText &txt, StreamedRichTextFormatCache &cache) { // idea: update lastBreak to make sure it's always valid
-//				TextFormatInfo curInfo, lastBreakInfo;
-//				double lbw = 0.0, lbh = 0.0, curw = 0.0, curh = 0.0, maxh = 0.0;
-//				bool hasBreakable = false, hasBreakableChar = false;
-//				CharData cData;
-//				size_t markID = 0, breakMarkID = 0;
-//				// first pass
-//				for (size_t i = 0; i < txt.Content.Length(); ++i) {
-//					TCHAR curc = txt.Content[i];
-//					while (markID < txt.Changes.Count() && txt.Changes[markID].Position == i) {
-//						ChangeInfo &ci = txt.Changes[markID];
-//						switch (ci.Type) {
-//							case ChangeType::Scale: {
-//								curInfo.Scale = ci.Parameters.NewScale;
-//								break;
-//							}
-//						}
-//					}
-//					cData = curInfo.Font->GetData(curc);
-//					curw += cData.Advance;
-//					if (curc == _TEXT('\n')) {
-//						lastBreakInfo = curInfo;
-//
-//					}
-//					switch (txt.Content[i]) {
-//						case _TEXT('\n'): {
-//							// switch to new line
-//							break;
-//						}
-//						default: {
-//							bool curBreakable = (txt.WrapType == LineWrapType::Wrap);
-//							if (
-//								(txt.Content[i] >= _TEXT('a') && txt.Content[i] <= _TEXT('z')) ||
-//								(txt.Content[i] >= _TEXT('A') && txt.Content[i] <= _TEXT('Z'))
-//							) { // not a breakable character
-//								if (!hasBreakableChar && txt.WrapType == LineWrapType::WrapWordsNoOverflow) {
-//									curBreakable = true;
-//								}
-//							} else {
-//								if (txt.WrapType != LineWrapType::NoWrap) {
-//									curBreakable = true;
-//									hasBreakableChar = true;
-//								}
-//							}
-//							if (i + 1 < txt.Content.Length() && txt.Content[i + 1] == _TEXT('\n')) {
-//								curBreakable = false;
-//							}
-//							if (curBreakable) {
-//								hasBreakable = true;
-//								lastBreakInfo = curInfo;
-//								lbw = curw;
-//							}
-//						}
-//					}
-//				}
-//			}
+			void StreamedRichText::DoCache(const StreamedRichText &txt, StreamedRichTextFormatCache &cache) { // idea: update lastBreak to make sure it's always valid
+				cache.LineBreaks.Clear();
+				cache.LineHeights.Clear();
+				cache.LineLengths.Clear();
+				cache.Size = Vector2();
+
+				TextFormatInfo curInfo, lastBreakInfo;
+				double lbw = 0.0, lbh = 0.0, curw = 0.0, curh = 0.0, maxh = 0.0;
+				bool hasBreakable = false, hasBreakableChar = false;
+				size_t markID = 0, breakMarkID = 0, lbid = 0;
+				for (size_t i = 0; i < txt.Content.Length(); ++i) {
+					TCHAR curc = txt.Content[i];
+					for (; markID < txt.Changes.Count() && txt.Changes[markID].Position == i; ++markID) {
+						const ChangeInfo &ci = txt.Changes[markID];
+						curInfo.ApplyChange(ci);
+						if (ci.Type == ChangeType::Font) {
+							if (curInfo.Font) {
+								if ((curh = curInfo.Font->GetHeight()) > maxh) {
+									maxh = curh;
+								}
+							} else {
+								curh = 0.0;
+							}
+						}
+					}
+					if (!curInfo.Font) { // skip this char if no font specified
+						continue;
+					}
+					const CharData &cData = curInfo.Font->GetData(curc);
+					curw += cData.Advance;
+					bool breaknow = curw > txt.LayoutRectangle.Width() - txt.Padding.Width() && hasBreakable;
+					if (curc == _TEXT('\n') && !breaknow) {
+						breaknow = true;
+						lastBreakInfo = curInfo;
+						lbw = curw;
+						lbh = maxh;
+						breakMarkID = markID;
+						lbid = i;
+					}
+					if (breaknow) {
+						cache.LineBreaks.PushBack(lbid);
+						cache.LineHeights.PushBack(lbh);
+						cache.LineLengths.PushBack(lbw);
+						cache.Size.Y += lbh;
+						if (lbw > cache.Size.X) {
+							cache.Size.X = lbw;
+						}
+						// restore last break scene
+						i = lbid;
+						curInfo = lastBreakInfo;
+						markID = breakMarkID;
+						hasBreakable = hasBreakableChar = false;
+						curw = 0.0;
+						maxh = curh = (curInfo.Font ? curInfo.Font->GetHeight() : 0.0);
+						continue;
+					}
+					// curc != '\n'
+					bool curBreakable = (txt.WrapType == LineWrapType::Wrap);
+					if (
+						(txt.Content[i] >= _TEXT('a') && txt.Content[i] <= _TEXT('z')) ||
+						(txt.Content[i] >= _TEXT('A') && txt.Content[i] <= _TEXT('Z'))
+					) { // not a breakable character
+						if (!hasBreakableChar && txt.WrapType == LineWrapType::WrapWordsNoOverflow) {
+							curBreakable = true;
+						}
+					} else {
+						if (txt.WrapType != LineWrapType::NoWrap) {
+							curBreakable = true;
+							hasBreakableChar = true;
+						}
+					}
+					if (i + 1 < txt.Content.Length() && txt.Content[i + 1] == _TEXT('\n')) {
+						curBreakable = false;
+					}
+					if (curBreakable) {
+						hasBreakable = true;
+						lastBreakInfo = curInfo;
+						lbw = curw;
+						lbh = maxh;
+						breakMarkID = markID;
+						lbid = i;
+					}
+				}
+				cache.Size.Y += maxh;
+				if (curw > cache.Size.X) {
+					cache.Size.X = curw;
+				}
+				cache.LineHeights.PushBack(maxh);
+				cache.LineLengths.PushBack(curw);
+			}
 		}
 	}
 }
