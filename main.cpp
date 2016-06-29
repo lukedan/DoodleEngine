@@ -938,20 +938,6 @@ class ControlTest : public Test {
 
 		virtual void Update(double dt) {
 			counter.Update(dt);
-
-//			wstringstream ss;
-//			ss <<
-//				"FPS:"<<counter.GetFPS() <<
-//				"\nAverage FPS:"<<counter.GetAverageFPS() <<
-//				"\nMemory Usage:"<<GlobalAllocator::UsedSize() <<
-//				"\nMemory Allocated:"<<GlobalAllocator::AllocatedSize() <<
-//				"\nthe quick brown fox jumps over the lazy dog" <<
-//				"\nTHE QUICK BROWN FOX JUMPS OVER THE LAZY DOG" <<
-//				"\n1234567890";
-//			lbl.Content().Content = ss.str().c_str();
-//			lbl.FitContent();
-//			p.FitContent();
-
 			w.Update(dt);
 		}
 		virtual void Render() {
