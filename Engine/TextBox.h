@@ -6,7 +6,8 @@
 
 namespace DE {
 	namespace UI {
-		class TextBox : public ScrollViewBase {
+		// testing
+		template <typename T/* = Graphics::TextRendering::BasicText*/> class TextBox : public ScrollViewBase {
 			protected:
 				enum class CaretMoveType {
 					None = 0,
@@ -149,7 +150,7 @@ namespace DE {
 					}
 				};
 			protected:
-				class LabelWrapper : public Label {
+				class LabelWrapper : public Label<T> {
 					friend class TextBox;
 				};
 
@@ -464,5 +465,9 @@ namespace DE {
 					TextChanged(info);
 				}
 		};
+		template <typename T> const Graphics::Pen TextBox<T>::DefaultCaretPen(Core::Color(0, 0, 0, 255), 1.0);
+		template <typename T> const Graphics::SolidBrush TextBox<T>::DefaultSelectionBrush(Core::Color(100, 150, 200, 100));
+		template <typename T> const Graphics::SolidBrush TextBox<T>::DefaultTextBoxBackground(Core::Color(255, 255, 255, 255));
+		template <typename T> const Graphics::Pen TextBox<T>::DefaultTextBoxBorder(Core::Color(0, 0, 0, 255), 1.0);
 	}
 }

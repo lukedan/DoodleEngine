@@ -10,9 +10,9 @@
 
 namespace DE {
 	namespace UI {
-		struct ComboBoxSelectionChangedInfo;
+		template <typename T> struct ComboBoxSelectionChangedInfo;
 		// TODO make ComboBox inherit from Button or ButtonBase
-		class SimpleComboBox : public SimpleButton { // TODO: restore the FitContentHeight() calls
+		template <typename T/* = Graphics::TextRendering::BasicText*/> class SimpleComboBox : public SimpleButton<T> { // TODO: restore the FitContentHeight() calls
 			public:
 				const static Graphics::SolidBrush DefaultNormalBrush, DefaultHoverBrush, DefaultPressedBrush, DefaultSelectedBrush;
 				constexpr static double ArrowSize = 5.0;
@@ -58,7 +58,7 @@ namespace DE {
 							return _father;
 						}
 					private:
-						SimpleButton _btn;
+						SimpleButton<T> _btn;
 						SimpleComboBox &_father;
 						void FitScrollView() {
 							_btn.SetSize(Size(_father.GetActualLayout().Width(), _btn.GetSize().Height));
@@ -67,13 +67,13 @@ namespace DE {
 				friend class Item;
 
 				SimpleComboBox() : _arrowColor(0, 0, 0, 255) {
-					Content().HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
+					this->_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
 					_box.SetAnchor(Anchor::TopLeft);
 					_box.SetChild(&_pnl);
 					_box.SetVisibility(Visibility::Ignored);
 					_box.SetHorizontalScrollBarVisibility(ScrollBarVisibility::Hidden);
 					_box.LostFocus += [&](const Core::Info &info) {
-						if (!_disposing && IsSelectionCancelled()) {
+						if (!this->_disposing && IsSelectionCancelled()) {
 							OnSelectionCancelled(info);
 						}
 					};
@@ -112,7 +112,7 @@ namespace DE {
 					_dropPnl = &pnl;
 				}
 				virtual ~SimpleComboBox() {
-					_disposing = true;
+					this->_disposing = true;
 					_items.ForEach([&](Item *item) {
 						item->~Item();
 						Core::GlobalAllocator::Free(item);
@@ -127,7 +127,7 @@ namespace DE {
 					return _dropPnl;
 				}
 				void SetDropDownPanel(Panel *pnl) {
-					if (!Initialized()) {
+					if (!this->Initialized()) {
 						Initialize();
 					}
 					if (_dropPnl) {
@@ -186,7 +186,23 @@ namespace DE {
 				void SetSelectedItem(size_t index) {
 					SetSelectedItem(_items[index]);
 				}
-				void SetSelectedItem(Item*);
+				void SetSelectedItem(Item *item) {
+					if (item && &(item->_father) != this) {
+						throw Core::InvalidOperationException(_TEXT("the item doesn't belong to this ComboBox"));
+					}
+					if (_selection) {
+						SetDefaultBrushes(_selection->_btn);
+					}
+					_selection = item;
+					if (_selection) {
+						SetSelectedBrushes(_selection->_btn);
+						this->_content = _selection->Content();
+						this->_content.LayoutRectangle = this->_actualLayout;
+					} else {
+						this->_content.Content = _TEXT("");
+					}
+					OnSelectionChanged(ComboBoxSelectionChangedInfo<T>(item));
+				}
 				Item *GetSelectedItem() const {
 					return _selection;
 				}
@@ -194,7 +210,7 @@ namespace DE {
 					return _items.FindFirst(const_cast<Item*>(&item));
 				}
 
-				Core::Event<ComboBoxSelectionChangedInfo> SelectionChanged;
+				Core::Event<ComboBoxSelectionChangedInfo<T>> SelectionChanged;
 			protected:
 				SimpleScrollView _box;
 				WrapPanel _pnl;
@@ -205,9 +221,9 @@ namespace DE {
 				Core::Input::MouseScrollBuffer _scrollBuf;
 
 				virtual void Render(Graphics::Renderer &r) override {
-					SimpleButton::Render(r);
+					SimpleButton<T>::Render(r);
 					Core::Collections::List<Graphics::Vertex> tri;
-					Core::Math::Rectangle rect = _actualLayout;
+					Core::Math::Rectangle rect = this->_actualLayout;
 					rect.Left = rect.Right - ArrowSize * 3.0;
 					rect.Right = rect.Left + ArrowSize * 2.0;
 					rect.Top = (rect.Top + rect.Bottom - ArrowSize) * 0.5;
@@ -219,16 +235,16 @@ namespace DE {
 				}
 
 				virtual void Initialize() override {
-					SimpleButton::Initialize();
+					SimpleButton<T>::Initialize();
 					if (_dropPnl && _box.GetFather() == nullptr) {
 						_dropPnl->Children().Insert(_box);
 					}
 				}
 
 				virtual void FinishLayoutChange() override {
-					SimpleButton::FinishLayoutChange();
+					SimpleButton<T>::FinishLayoutChange();
 					if (_dropPnl) {
-						Core::Math::Vector2 tl = _actualLayout.BottomLeft();
+						Core::Math::Vector2 tl = this->_actualLayout.BottomLeft();
 						tl -= _dropPnl->GetActualLayout().TopLeft();
 						_box.SetMargins(Thickness(tl.X, tl.Y, 0.0, 0.0));
 					}
@@ -241,12 +257,12 @@ namespace DE {
 					});
 					_pnl.FitContent();
 					if (_dropPnl) {
-						double maxsz = _dropPnl->GetActualLayout().Bottom - _actualLayout.Bottom;
-						_box.SetSize(Size(GetActualLayout().Width(), Core::Math::Min(maxsz, _pnl.GetSize().Height)));
+						double maxsz = _dropPnl->GetActualLayout().Bottom - this->_actualLayout.Bottom;
+						_box.SetSize(Size(this->_actualLayout.Width(), Core::Math::Min(maxsz, _pnl.GetSize().Height)));
 					}
 				}
 				virtual void OnClick(const Core::Info &info) override {
-					SimpleButton::OnClick(info);
+					SimpleButton<T>::OnClick(info);
 					if (_dropPnl) {
 						_box.SetHorizontalScrollBarValue(0.0);
 						_box.SetVisibility(Visibility::Visible);
@@ -258,52 +274,58 @@ namespace DE {
 								_pnl.GetActualLayout().TopLeft()
 							);
 						}
-						GetWorld()->SetFocus(&_box);
+						this->GetWorld()->SetFocus(&_box);
 					}
 				}
-				virtual void OnSelectionChanged(const ComboBoxSelectionChangedInfo&);
+				virtual void OnSelectionChanged(const ComboBoxSelectionChangedInfo<T> &info) {
+					SelectionChanged(info);
+				}
 				virtual void OnItemClicked(Item &item) {
 					_box.SetVisibility(Visibility::Ignored);
 					SetSelectedItem(&item);
-					GetWorld()->SetFocus(this);
+					this->GetWorld()->SetFocus(this);
 				}
 
 				virtual void OnLostFocus(const Core::Info &info) override {
-					SimpleButton::OnLostFocus(info);
+					SimpleButton<T>::OnLostFocus(info);
 					if (IsSelectionCancelled()) {
 						OnSelectionCancelled(info);
 					}
 				}
 				virtual bool IsSelectionCancelled() const {
-					return GetWorld()->FocusedControl() != this && GetWorld()->FocusedControl() != &_box;
+					return this->GetWorld()->FocusedControl() != this && this->GetWorld()->FocusedControl() != &_box;
 				}
 				virtual void OnSelectionCancelled(const Core::Info&) {
 					_box.SetVisibility(Visibility::Ignored);
 				}
 				virtual bool OnMouseScroll(const Core::Input::MouseScrollInfo &info) override {
-					InputElement::OnMouseScroll(info);
+					Core::Input::InputElement::OnMouseScroll(info);
 					if (_box.GetVisibility() == Visibility::Visible) {
-						GetWorld()->SetFocus(&_box);
+						this->GetWorld()->SetFocus(&_box);
 					} else {
 						_scrollBuf.OnScroll(info.Delta);
 					}
 					return true;
 				}
-				virtual void SetDefaultBrushes(SimpleButton &btn) {
+				virtual void SetDefaultBrushes(SimpleButton<T> &btn) {
 					btn.NormalBrush = &DefaultNormalBrush;
 					btn.HoverBrush = &DefaultHoverBrush;
 					btn.PressedBrush = &DefaultPressedBrush;
 				}
-				virtual void SetSelectedBrushes(SimpleButton &btn) {
+				virtual void SetSelectedBrushes(SimpleButton<T> &btn) {
 					btn.NormalBrush = btn.HoverBrush = btn.PressedBrush = &DefaultSelectedBrush;
 				}
 		};
-		struct ComboBoxSelectionChangedInfo {
+		template <typename T> const Graphics::SolidBrush SimpleComboBox<T>::DefaultNormalBrush(Core::Color(255, 255, 255, 255));
+		template <typename T> const Graphics::SolidBrush SimpleComboBox<T>::DefaultHoverBrush(Core::Color(150, 150, 150, 255));
+		template <typename T> const Graphics::SolidBrush SimpleComboBox<T>::DefaultPressedBrush(Core::Color(100, 100, 100, 255));
+		template <typename T> const Graphics::SolidBrush SimpleComboBox<T>::DefaultSelectedBrush(Core::Color(100, 150, 255, 255));
+		template <typename T> struct ComboBoxSelectionChangedInfo {
 			public:
-				ComboBoxSelectionChangedInfo(SimpleComboBox::Item *item) : NewSelection(item) {
+				ComboBoxSelectionChangedInfo(typename SimpleComboBox<T>::Item *item) : NewSelection(item) {
 				}
 
-				Core::ReferenceProperty<SimpleComboBox::Item*, Core::PropertyType::ReadOnly> NewSelection;
+				Core::ReferenceProperty<typename SimpleComboBox<T>::Item*, Core::PropertyType::ReadOnly> NewSelection;
 		};
 	}
 }

@@ -929,7 +929,7 @@ class ControlTest : public Test {
 			tBox.SetText(str);
 		}
 		void InsertComboBoxItem(const Core::String &text) {
-			SimpleComboBox::Item *item = &comBox.InsertItem();
+			typename SimpleComboBox<BasicText>::Item *item = &comBox.InsertItem();
 			item->Content().Font = &fnt;
 			item->Content().Content = text;
 			item->Content().TextColor = Color(0, 0, 0, 255);
@@ -956,14 +956,14 @@ class ControlTest : public Test {
 		UI::World w;
 		Panel base, popup;
 		WrapPanel p;
-		SimpleButton b, bDump, bLoad;
-		Label lbl;
+		SimpleButton<BasicText> b, bDump, bLoad;
+		Label<BasicText> lbl;
 		SliderBase sBar;
 		SimpleProgressBar pBar;
-		SimpleCheckBox ckBox, tstat, rdOnly;
+		SimpleCheckBox<BasicText> ckBox, tstat, rdOnly;
 		SimpleScrollView view;
-		SimpleComboBox comBox;
-		TextBox tBox;
+		SimpleComboBox<BasicText> comBox;
+		TextBox<BasicText> tBox;
 		PerformanceGraph pGraph;
 		SimpleConsoleRunner runner;
 		Console console;

@@ -694,7 +694,7 @@ namespace DE {
 						info.ApplyChange(txt.Changes[mark]);
 					}
 					if (info.Font) {
-						double adv = info.Font->GetData(txt.Content[i]) * info.Scale;
+						double adv = info.Font->GetData(txt.Content[i]).Advance * info.Scale;
 						if ((relPos.X -= adv) < 0.0) {
 							over = i;
 							caret = (txt.Content[i] != _TEXT('\n') && relPos.X > -0.5 * adv ? i + 1 : i);
@@ -727,7 +727,7 @@ namespace DE {
 					lb = cache.LineBreaks[line - 1] + 1;
 					changeID = cache.LineEndChangeIDs[line - 1];
 				}
-				pos.X = _GetLineBegin(cache.LineLengths[line], *this);
+				pos.X = _GetLineBegin(cache.LineLengths[line], txt);
 				for (size_t i = lb; i < caret; ++i) {
 					while (changeID < txt.Changes.Count() && i == txt.Changes[changeID].Position) {
 						ti.ApplyChange(txt.Changes[changeID]);

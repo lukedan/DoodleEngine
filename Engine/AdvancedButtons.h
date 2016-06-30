@@ -28,13 +28,13 @@ namespace DE {
 
 				Core::ReferenceProperty<CheckBoxState, Core::PropertyType::ReadOnly> OldState, NewState;
 		};
-		class CheckBoxBase : public ButtonBase {
+		template <typename T/* = Graphics::TextRendering::BasicText*/> class CheckBoxBase : public ButtonBase<T> {
 				friend class World;
 			public:
 				const static Size DefaultBoxSize;
 
-				CheckBoxBase() : ButtonBase() {
-					_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
+				CheckBoxBase() : ButtonBase<T>() {
+					this->_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
 				}
 
 				CheckBoxState &State() {
@@ -68,11 +68,11 @@ namespace DE {
 				}
 
 				virtual void FitContent() override {
-					Core::Math::Vector2 cSize = _content.GetSize();
+					Core::Math::Vector2 cSize = this->_content.GetSize();
 					if (_type == CheckBoxType::Box) {
-						SetSize(Size(cSize.X + _boxSize.Width, Core::Math::Max(cSize.Y, _boxSize.Height)));
+						this->SetSize(Size(cSize.X + _boxSize.Width, Core::Math::Max(cSize.Y, _boxSize.Height)));
 					} else {
-						SetSize(Size(cSize));
+						this->SetSize(Size(cSize));
 					}
 				}
 
@@ -87,12 +87,12 @@ namespace DE {
 									_checkState = CheckBoxState::Checked;
 									OnStateChanged(CheckBoxStateChangeInfo(CheckBoxState::HalfChecked, _checkState));
 								}
-								_content.LayoutRectangle.Left = _actualLayout.Left;
-								_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Center;
+								this->_content.LayoutRectangle.Left = this->_actualLayout.Left;
+								this->_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Center;
 							} else {
 								CalculateBoxRegion();
-								_content.LayoutRectangle.Left = _actualLayout.Left + _boxSize.Width;
-								_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
+								this->_content.LayoutRectangle.Left = this->_actualLayout.Left + _boxSize.Width;
+								this->_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Left;
 							}
 						}, [this]() {
 							return _type;
@@ -107,10 +107,10 @@ namespace DE {
 				CheckBoxType _type = CheckBoxType::Box;
 
 				virtual void FinishLayoutChange() override {
-					ButtonBase::FinishLayoutChange();
+					ButtonBase<T>::FinishLayoutChange();
 					CalculateBoxRegion();
 					if (_type == CheckBoxType::Box) {
-						_content.LayoutRectangle.Left += _boxSize.Width;
+						this->_content.LayoutRectangle.Left += _boxSize.Width;
 					}
 				}
 				virtual void OnClick(const Core::Info&) override {
@@ -140,19 +140,19 @@ namespace DE {
 					StateChanged(info);
 				}
 				virtual void CalculateBoxRegion() {
-					_boxRegion.Left = _actualLayout.Left;
+					_boxRegion.Left = this->_actualLayout.Left;
 					_boxRegion.Right = _boxRegion.Left + _boxSize.Width;
 					switch (_align) {
 						case CheckBoxAlignment::TopLeft: {
-							_boxRegion.Top = _actualLayout.Top;
+							_boxRegion.Top = this->_actualLayout.Top;
 							break;
 						}
 						case CheckBoxAlignment::MiddleLeft: {
-							_boxRegion.Top = (_actualLayout.Top + _actualLayout.Bottom - _boxSize.Height) / 2.0;
+							_boxRegion.Top = (this->_actualLayout.Top + this->_actualLayout.Bottom - _boxSize.Height) * 0.5;
 							break;
 						}
 						case CheckBoxAlignment::BottomLeft: {
-							_boxRegion.Top = _actualLayout.Bottom - _boxSize.Height;
+							_boxRegion.Top = this->_actualLayout.Bottom - _boxSize.Height;
 							break;
 						}
 					}
@@ -164,21 +164,23 @@ namespace DE {
 				virtual void OnBoxAlignmentChanged() {
 					switch (_align) {
 						case CheckBoxAlignment::TopLeft: {
-							_content.VerticalAlignment = Graphics::TextRendering::VerticalTextAlignment::Bottom;
+							this->_content.VerticalAlignment = Graphics::TextRendering::VerticalTextAlignment::Bottom;
 							break;
 						}
 						case CheckBoxAlignment::MiddleLeft: {
-							_content.VerticalAlignment = Graphics::TextRendering::VerticalTextAlignment::Center;
+							this->_content.VerticalAlignment = Graphics::TextRendering::VerticalTextAlignment::Center;
 							break;
 						}
 						case CheckBoxAlignment::BottomLeft: {
-							_content.VerticalAlignment = Graphics::TextRendering::VerticalTextAlignment::Top;							break;
+							this->_content.VerticalAlignment = Graphics::TextRendering::VerticalTextAlignment::Top;							break;
 						}
 					}
 					CalculateBoxRegion();
 				}
 		};
-		class SimpleCheckBox : public CheckBoxBase {
+		template <typename T> const Size CheckBoxBase<T>::DefaultBoxSize(10.0, 10.0);
+
+		template <typename T/* = Graphics::TextRendering:BasicText*/> class SimpleCheckBox : public CheckBoxBase<T> {
 				friend class World;
 			public:
 				const static Graphics::SolidBrush DefaultNormalBoxBrush, DefaultHoverBoxBrush, DefaultPressedBoxBrush, DefaultCheckedBoxBrush;
@@ -220,20 +222,20 @@ namespace DE {
 					return _checkPen;
 				}
 
-				using CheckBoxBase::Type;
+				using CheckBoxBase<T>::Type;
 			protected:
 				const Graphics::Brush *_freeBkg = nullptr, *_overBkg = nullptr, *_downBkg = nullptr, *_checkBkg = nullptr;
 				const Graphics::Pen *_checkPen = nullptr;
 
 				virtual void Render(Graphics::Renderer &r) override {
-					Core::Math::Rectangle fillRgn = (_type == CheckBoxType::Box ? _boxRegion : _actualLayout);
+					Core::Math::Rectangle fillRgn = (this->_type == CheckBoxType::Box ? this->_boxRegion : this->_actualLayout);
 					if (
-						(((int)_state & (int)ButtonState::KeyboardPressed)) ||
-						((int)_state & (int)ButtonState::MousePressed) == (int)ButtonState::MousePressed
+						(((int)this->_state & (int)ButtonState::KeyboardPressed)) ||
+						((int)this->_state & (int)ButtonState::MousePressed) == (int)ButtonState::MousePressed
 					) {
 						DrawRect(_downBkg, DefaultPressedBoxBrush, r, fillRgn);
-					} else if (!((int)_state & (int)ButtonState::MouseOver)) {
-						if (_type == CheckBoxType::Box || _checkState != CheckBoxState::Checked) {
+					} else if (!((int)this->_state & (int)ButtonState::MouseOver)) {
+						if (this->_type == CheckBoxType::Box || this->_checkState != CheckBoxState::Checked) {
 							DrawRect(_freeBkg, DefaultNormalBoxBrush, r, fillRgn);
 						} else {
 							DrawRect(_checkBkg, DefaultCheckedBoxBrush, r, fillRgn);
@@ -241,15 +243,15 @@ namespace DE {
 					} else {
 						DrawRect(_overBkg, DefaultHoverBoxBrush, r, fillRgn);
 					}
-					if (_type == CheckBoxType::Box) {
+					if (this->_type == CheckBoxType::Box) {
 						Core::Collections::List<Core::Math::Vector2> ls;
-						DE::Core::Math::Rectangle newRect = _boxRegion;
+						DE::Core::Math::Rectangle newRect = this->_boxRegion;
 						newRect.Scale(newRect.Center(), CheckSize);
-						if (_checkState != CheckBoxState::Unchecked) {
+						if (this->_checkState != CheckBoxState::Unchecked) {
 							ls.PushBack(newRect.TopLeft());
 							ls.PushBack(newRect.BottomRight());
 						}
-						if (_checkState == CheckBoxState::Checked) {
+						if (this->_checkState == CheckBoxState::Checked) {
 							ls.PushBack(newRect.BottomLeft());
 							ls.PushBack(newRect.TopRight());
 						}
@@ -259,7 +261,7 @@ namespace DE {
 							DefaultCheckPen.DrawLines(ls, r);
 						}
 					}
-					CheckBoxBase::Render(r);
+					CheckBoxBase<T>::Render(r);
 				}
 				void DrawRect(const Graphics::Brush *b, const Graphics::Brush &fallBack, Graphics::Renderer &r, const Core::Math::Rectangle &rect) {
 					if (b) {
@@ -269,5 +271,11 @@ namespace DE {
 					}
 				}
 		};
+		template <typename T> const Graphics::SolidBrush SimpleCheckBox<T>::DefaultNormalBoxBrush(Core::Color(180, 180, 180, 255));
+		template <typename T> const Graphics::SolidBrush SimpleCheckBox<T>::DefaultHoverBoxBrush(Core::Color(230, 230, 230, 255));
+		template <typename T> const Graphics::SolidBrush SimpleCheckBox<T>::DefaultPressedBoxBrush(Core::Color(130, 130, 130, 255));
+		template <typename T> const Graphics::SolidBrush SimpleCheckBox<T>::DefaultCheckedBoxBrush(Core::Color(80, 80, 80, 255));
+		template <typename T> const Graphics::Pen SimpleCheckBox<T>::DefaultCheckPen(Core::Color(0, 0, 0, 255), 2.5);
+		template <typename T> const double SimpleCheckBox<T>::CheckSize = 0.8;
 	}
 }

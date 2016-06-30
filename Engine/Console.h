@@ -553,7 +553,7 @@ namespace DE {
 				}
 			protected:
 				SimpleConsoleTextBox _output;
-				TextBox _input;
+				TextBox<Graphics::TextRendering::BasicText> _input; // TODO implement NullText
 				ConsoleRunnerBase *_runner = nullptr;
 
 				virtual void Initialize() override {

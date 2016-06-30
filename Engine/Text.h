@@ -84,7 +84,7 @@ namespace DE {
 					HorizontalTextAlignment HorizontalAlignment = HorizontalTextAlignment::Left;
 					VerticalTextAlignment VerticalAlignment = VerticalTextAlignment::Top;
 					bool RoundToInteger = true, UseClip = false;
-					Core::Math::Rectangle Clip, Padding {-2.0, -2.0, 4.0, 4.0};
+					Core::Math::Rectangle Clip, Padding {-4.0, -4.0, 8.0, 8.0};
 					Core::Color TextColor;
 
 					void CacheFormat();
@@ -233,7 +233,7 @@ namespace DE {
 					};
 
 					Core::String Content;
-					Core::Math::Rectangle LayoutRectangle, Padding {-2.0, -2.0, 4.0, 4.0};
+					Core::Math::Rectangle LayoutRectangle, Padding {-4.0, -4.0, 8.0, 8.0};
 					Core::Collections::List<ChangeInfo> Changes;
 					LineWrapType WrapType = LineWrapType::NoWrap;
 					HorizontalTextAlignment HorizontalAlignment = HorizontalTextAlignment::Left;
