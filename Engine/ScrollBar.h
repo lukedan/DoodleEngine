@@ -396,7 +396,7 @@ namespace DE {
 				Core::Event<ScrollInfo> Scroll;
 			protected:
 				SimpleScrollBarButton _drag;
-				SimpleButton<Graphics::TextRendering::BasicText> _upB, _downB;
+				SimpleButton<Graphics::TextRendering::BasicText> _upB, _downB; // TODO implement NullText
 				double _cur = 0.0, _range = 0.2, _maxV = 1.0, _pageDelta = DefaultPageDelta, _stepRatio = DefaultStepDistanceRatio;
 				LayoutDirection _dir = LayoutDirection::Vertical;
 

@@ -514,20 +514,21 @@ namespace DE {
 				size_t markID = 0, breakMarkID = 0, lbid = 0;
 				for (size_t i = 0; i < txt.Content.Length(); ++i) {
 					TCHAR curc = txt.Content[i];
-					for (; markID < txt.Changes.Count() && txt.Changes[markID].Position == i; ++markID) {
-						const ChangeInfo &ci = txt.Changes[markID];
-						curInfo.ApplyChange(ci);
-						if (ci.Type == ChangeType::Font) {
-							if (curInfo.Font) {
-								if ((curh = curInfo.Font->GetHeight()) > maxh) {
-									maxh = curh;
-								}
-							} else {
-								curh = 0.0;
+					if (markID < txt.Changes.Count() && txt.Changes[markID].Position == i) {
+						do {
+							const ChangeInfo &ci = txt.Changes[markID];
+							curInfo.ApplyChange(ci);
+							++markID;
+						} while (markID < txt.Changes.Count() && txt.Changes[markID].Position == i);
+						if (curInfo.Font) {
+							curh = curInfo.Font->GetHeight() * curInfo.Scale;
+							if (curh > maxh) {
+								maxh = curh;
 							}
+						} else {
+							continue;
 						}
-					}
-					if (!curInfo.Font) { // skip this char if no font specified
+					} else if (!curInfo.Font) { // skip this char if no font specified
 						continue;
 					}
 					const CharData &cData = curInfo.Font->GetData(curc);
@@ -557,7 +558,7 @@ namespace DE {
 						markID = breakMarkID;
 						hasBreakable = hasBreakableChar = false;
 						curw = 0.0;
-						maxh = curh = (curInfo.Font ? curInfo.Font->GetHeight() : 0.0);
+						maxh = curh = (curInfo.Font ? curInfo.Font->GetHeight() * curInfo.Scale : 0.0);
 						continue;
 					}
 					// curc != '\n'
@@ -596,7 +597,7 @@ namespace DE {
 				cache.LineEndFormat.PushBack(curInfo);
 			}
 			Vector2 StreamedRichText::DoGetSize(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt) {
-				return cache.Size;
+				return cache.Size + txt.Padding.Size();
 			}
 			void StreamedRichText::DoRender(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, Renderer &r) {
 				if (cache.LineLengths.Count() == 0) {
@@ -616,6 +617,7 @@ namespace DE {
 							}
 						}
 						ti.ApplyChange(txt.Changes[changeID]);
+						++changeID;
 					}
 					if (ti.Font) {
 						const CharData &cd = ti.Font->GetData(txt.Content[i]);
@@ -629,9 +631,9 @@ namespace DE {
 							lastPage = atex.Page;
 						}
 						Math::Rectangle rect = cd.Placement;
-						Vector2 diff = topLeft;
-						diff.Y += (cache.LineHeights[curLine] - ti.Font->GetHeight()) * ti.LocalVerticalPosition;
 						rect.Scale(Vector2(), ti.Scale);
+						Vector2 diff = topLeft;
+						diff.Y += (cache.LineHeights[curLine] - ti.Font->GetHeight() * ti.Scale) * ti.LocalVerticalPosition;
 						rect.Translate(diff);
 						vxs.PushBack(Vertex(rect.TopLeft(), ti.Color, atex.UVRect.TopLeft()));
 						vxs.PushBack(Vertex(rect.TopRight(), ti.Color, atex.UVRect.TopRight()));
@@ -639,8 +641,8 @@ namespace DE {
 						vxs.PushBack(Vertex(rect.TopRight(), ti.Color, atex.UVRect.TopRight()));
 						vxs.PushBack(Vertex(rect.BottomRight(), ti.Color, atex.UVRect.BottomRight()));
 						vxs.PushBack(Vertex(rect.BottomLeft(), ti.Color, atex.UVRect.BottomLeft()));
-						topLeft.X += cd.Advance;
-						if (cache.LineBreaks[curLine] == i) {
+						topLeft.X += cd.Advance * ti.Scale;
+						if (curLine < cache.LineBreaks.Count() && cache.LineBreaks[curLine] == i) {
 							topLeft.Y += cache.LineHeights[curLine];
 							topLeft.X = _GetLineBegin(cache.LineLengths[++curLine], txt);
 						}
@@ -656,8 +658,67 @@ namespace DE {
 				const StreamedRichText &txt,
 				size_t beg, size_t end
 			) {
-				// testing
-				return List<Math::Rectangle>();
+				List<Math::Rectangle> result;
+				size_t line = DoGetLineOfCaret(cache, txt, beg), leb = 0, markID = 0;
+				TextFormatInfo format;
+				if (line > 0) {
+					format = cache.LineEndFormat[line - 1];
+					leb = cache.LineBreaks[line - 1] + 1;
+					markID = cache.LineEndChangeIDs[line - 1];
+				}
+				size_t lastend = beg, cur = leb;
+				double lastX = _GetLineBegin(cache.LineLengths[line], txt);
+				for (; cur < beg; ++cur) {
+					while (markID < txt.Changes.Count() && cur == txt.Changes[markID].Position) {
+						format.ApplyChange(txt.Changes[markID]);
+						++markID;
+					}
+					if (format.Font) {
+						lastX += format.Font->GetData(txt.Content[cur]).Advance * format.Scale;
+					}
+				}
+				double curX = lastX, lineTop = DoGetLineTop(cache, txt, line);
+				for (; cur < end; ++cur) {
+					bool
+						atEol = (cur > leb && line < cache.LineBreaks.Count() && cur == cache.LineBreaks[line] + 1),
+						hasNewChange = (markID < txt.Changes.Count() && cur == txt.Changes[markID].Position);
+					if (atEol || hasNewChange) {
+						if (format.Font && lastend < cur) {
+							double
+								fh = format.Font->GetHeight() * format.Scale,
+								t = (cache.LineHeights[line] - fh) * format.LocalVerticalPosition;
+							result.PushBack(Math::Rectangle(
+								Vector2(lastX, lineTop + t),
+								Vector2(curX, lineTop + t + fh)
+							));
+							lastX = curX;
+							lastend = cur;
+						}
+					}
+					if (atEol) {
+						lineTop += cache.LineHeights[line];
+						lastX = curX = _GetLineBegin(cache.LineLengths[++line], txt);
+					}
+					if (hasNewChange) {
+						do {
+							format.ApplyChange(txt.Changes[markID]);
+							++markID;
+						} while (markID < txt.Changes.Count() && cur == txt.Changes[markID].Position);
+					}
+					if (format.Font) {
+						curX += format.Font->GetData(txt.Content[cur]).Advance * format.Scale;
+					}
+				}
+				if (format.Font) {
+					double
+						fh = format.Font->GetHeight() * format.Scale,
+						t = (cache.LineHeights[line] - fh) * format.LocalVerticalPosition;
+					result.PushBack(Math::Rectangle(
+						Vector2(lastX, lineTop + t),
+						Vector2(curX, lineTop + t + fh)
+					));
+				}
+				return result;
 			}
 			void StreamedRichText::DoHitTest(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, const Core::Math::Vector2 &pos, size_t &over, size_t &caret) {
 				Vector2 relPos = pos;
@@ -668,14 +729,14 @@ namespace DE {
 				}
 				size_t line = 0;
 				cache.LineHeights.ForEach([&](double h) {
-					if ((h -= relPos.Y) < 0.0) {
+					if ((relPos.Y -= h) < 0.0) {
 						return false;
 					}
 					++line;
 					return true;
 				});
 				if (line >= cache.LineLengths.Count()) {
-					over = (caret = txt.Content.Length()) - 1;
+					over = caret = txt.Content.Length();
 					return;
 				}
 				TextFormatInfo info;
@@ -685,6 +746,10 @@ namespace DE {
 					info = cache.LineEndFormat[line - 1];
 					mark = cache.LineEndChangeIDs[line - 1];
 				}
+				if (beg == end) {
+					over = (caret = txt.Content.Length()) - 1;
+					return;
+				}
 				if ((relPos.X -= _GetLineBegin(cache.LineLengths[line], txt)) < 0.0) {
 					over = caret = beg;
 					return;
@@ -692,6 +757,7 @@ namespace DE {
 				for (size_t i = beg; i < end; ++i) {
 					while (mark < txt.Changes.Count() && txt.Changes[mark].Position == i) {
 						info.ApplyChange(txt.Changes[mark]);
+						++mark;
 					}
 					if (info.Font) {
 						double adv = info.Font->GetData(txt.Content[i]).Advance * info.Scale;
@@ -708,7 +774,7 @@ namespace DE {
 					over = (caret = end) - 1;
 				}
 			}
-			void StreamedRichText::DoGetRelativeCaretPositionAndHeight(
+			void StreamedRichText::DoGetCaretPositionAndHeight(
 				const StreamedRichTextFormatCache &cache,
 				const StreamedRichText &txt,
 				size_t caret,
@@ -773,7 +839,7 @@ namespace DE {
 				}
 				return line;
 			}
-			size_t StreamedRichText::DoGetLineOfCaret(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t caret) {
+			size_t StreamedRichText::DoGetLineOfCaret(const StreamedRichTextFormatCache &cache, const StreamedRichText&, size_t caret) {
 				size_t line = 0;
 				cache.LineBreaks.ForEach([&](size_t bpos) {
 					if (bpos < caret) {
@@ -784,7 +850,7 @@ namespace DE {
 				});
 				return line;
 			}
-			size_t StreamedRichText::DoGetLineNumber(const StreamedRichTextFormatCache &cache, const StreamedRichText &text) {
+			size_t StreamedRichText::DoGetLineNumber(const StreamedRichTextFormatCache &cache, const StreamedRichText&) {
 				return cache.LineLengths.Count();
 			}
 			void StreamedRichText::DoGetLineBeginning(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t line, size_t &caret, double &baseline) {
@@ -811,7 +877,7 @@ namespace DE {
 				}
 				return top;
 			}
-			double StreamedRichText::DoGetLineHeight(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t line) {
+			double StreamedRichText::DoGetLineHeight(const StreamedRichTextFormatCache &cache, const StreamedRichText&, size_t line) {
 				return cache.LineHeights[line];
 			}
 
@@ -835,11 +901,11 @@ namespace DE {
 			void StreamedRichText::HitTest(const Core::Math::Vector2 &pt, size_t &over, size_t &caret) const {
 				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoHitTest, pt, over, caret);
 			}
-			void StreamedRichText::GetRelativeCaretPositionAndHeight(size_t caret, Core::Math::Vector2 &pos, double &h) const {
-				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetRelativeCaretPositionAndHeight, caret, false, 0.0, pos, h);
+			void StreamedRichText::GetCaretInfo(size_t caret, Core::Math::Vector2 &pos, double &h) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetCaretPositionAndHeight, caret, false, 0.0, pos, h);
 			}
-			void StreamedRichText::GetRelativeCaretPositionAndHeight(size_t caret, double baseline, Core::Math::Vector2 &pos, double &h) const {
-				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetRelativeCaretPositionAndHeight, caret, true, baseline, pos, h);
+			void StreamedRichText::GetCaretInfo(size_t caret, double baseline, Core::Math::Vector2 &pos, double &h) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetCaretPositionAndHeight, caret, true, baseline, pos, h);
 			}
 			size_t StreamedRichText::GetLineOfCaret(size_t caret) const {
 				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineOfCaret, caret);

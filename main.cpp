@@ -701,8 +701,15 @@ class ControlTest : public Test {
 			tstat.FitContent();
 			p.Children().Insert(tstat);
 
-			tBox.Text().Font = &fnt;
-			tBox.Text().TextColor = Color(0, 0, 0, 255);
+			tBox.Text()<<
+				&fnt<<Color(0, 0, 0, 255)<<_TEXT("123")<<
+				TextFormatStreaming::NewLocalVerticalPosition(1.0)<<_TEXT("45")<<
+				Color(255, 0, 0, 255)<<TextFormatStreaming::NewScale(1.5)<<_TEXT("67890")<<
+				&consFnt<<Color(0, 0, 0, 255)<<TextFormatStreaming::NewScale(1.0)<<_TEXT("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")<<
+				&fnt;
+//			tBox.Text().TextColor = Color(0, 0, 0, 255);
+//			tBox.Text().Font = &fnt;
+//			tBox.Text().TextColor = Color(0, 0, 0, 255);
 			// tests below have passed
 //			tBox.Text().Scale = 1.5;
 //			tBox.Text().HorizontalAlignment = HorizontalTextAlignment::Center; // only locally centered
@@ -963,7 +970,8 @@ class ControlTest : public Test {
 		SimpleCheckBox<BasicText> ckBox, tstat, rdOnly;
 		SimpleScrollView view;
 		SimpleComboBox<BasicText> comBox;
-		TextBox<BasicText> tBox;
+//		TextBox<BasicText> tBox;
+		TextBox<StreamedRichText> tBox;
 		PerformanceGraph pGraph;
 		SimpleConsoleRunner runner;
 		Console console;

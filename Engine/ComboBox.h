@@ -39,10 +39,10 @@ namespace DE {
 							}
 						}
 
-						Graphics::TextRendering::BasicText &Content() {
+						T &Content() {
 							return _btn.Content();
 						}
-						const Graphics::TextRendering::BasicText &Content() const {
+						const T &Content() const {
 							return _btn.Content();
 						}
 

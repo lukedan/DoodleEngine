@@ -30,10 +30,10 @@ namespace DE {
 					_disposing = true;
 				}
 
-				Graphics::TextRendering::BasicText &Text() {
+				T &Text() {
 					return _lbl.Content();
 				}
-				const Graphics::TextRendering::BasicText &Text() const {
+				const T &Text() const {
 					return _lbl.Content();
 				}
 				void SetText(const Core::String &text) {
@@ -98,7 +98,7 @@ namespace DE {
 					return &DefaultTextBoxBorder;
 				}
 
-				virtual void SetDesiredVisibleLine(size_t lines) {
+				void SetDesiredVisibleLine(size_t lines) {
 					SetSize(Size(GetSize().Width, _lbl.Content().Padding.Height() + lines * _lbl.Content().Font->GetHeight()));
 				}
 
@@ -186,7 +186,7 @@ namespace DE {
 					MakeCaretInView();
 				}
 				virtual void SetCaretPositionInfo(size_t newPosition, CaretMoveType type) {
-					SetCaretPositionInfo(newPosition, type, _lbl.Content().GetRelativeCaretPosition(newPosition).X);
+					SetCaretPositionInfo(newPosition, type, _lbl.Content().GetCaretPosition(newPosition).X - _lbl.Content().LayoutRectangle.Left);
 				}
 
 				virtual void Update(double dt) override {
@@ -239,13 +239,15 @@ namespace DE {
 					});
 				}
 				double GetOverwriteModeCaretWidth() const {
-					double rawResult;
-					if (_caret >= _lbl.Content().Content.Length()) {
-						rawResult = _lbl.Content().Font->GetData(_TEXT('\n')).Advance;
-					} else {
-						rawResult = _lbl.Content().Font->GetData(_lbl.Content().Content[_caret]).Advance;
-					}
-					return rawResult * _lbl.Content().Scale;
+//					double rawResult;
+//					if (_caret >= _lbl.Content().Content.Length()) {
+//						rawResult = _lbl.Content().Font->GetData(_TEXT('\n')).Advance;
+//					} else {
+//						rawResult = _lbl.Content().Font->GetData(_lbl.Content().Content[_caret]).Advance;
+//					}
+//					return rawResult * _lbl.Content().Scale;
+					// testing
+					return 0.0;
 				}
 
 				void ResetChildrenLayout() override {
@@ -439,18 +441,14 @@ namespace DE {
 									break; // terminate in advance
 								}
 							}
-							if (_lbl.Content().Font && _lbl.Content().Font->HasData(realChar)) {
-								if (_insert) {
-									_lbl.Content().Content.Insert(_caret, realChar);
-								} else {
-									if (_caret < _lbl.Content().Content.Length() && _lbl.Content().Content[_caret] != _TEXT('\n')) {
-										_lbl.Content().Content[_caret] = realChar;
-									} else {
-										_lbl.Content().Content.Insert(_caret, realChar);
-									}
-								}
+							if (_insert) {
+								_lbl.Content().Content.Insert(_caret, realChar);
 							} else {
-								changed = false;
+								if (_caret < _lbl.Content().Content.Length() && _lbl.Content().Content[_caret] != _TEXT('\n')) {
+									_lbl.Content().Content[_caret] = realChar;
+								} else {
+									_lbl.Content().Content.Insert(_caret, realChar);
+								}
 							}
 							break;
 						}
