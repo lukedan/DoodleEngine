@@ -28,7 +28,7 @@ namespace DE {
 
 				Core::ReferenceProperty<CheckBoxState, Core::PropertyType::ReadOnly> OldState, NewState;
 		};
-		template <typename T/* = Graphics::TextRendering::BasicText*/> class CheckBoxBase : public ButtonBase<T> {
+		template <typename T = Graphics::TextRendering::BasicText> class CheckBoxBase : public ButtonBase<T> {
 				friend class World;
 			public:
 				const static Size DefaultBoxSize;
@@ -180,7 +180,7 @@ namespace DE {
 		};
 		template <typename T> const Size CheckBoxBase<T>::DefaultBoxSize(10.0, 10.0);
 
-		template <typename T/* = Graphics::TextRendering:BasicText*/> class SimpleCheckBox : public CheckBoxBase<T> {
+		template <typename T = Graphics::TextRendering::BasicText> class SimpleCheckBox : public CheckBoxBase<T> {
 				friend class World;
 			public:
 				const static Graphics::SolidBrush DefaultNormalBoxBrush, DefaultHoverBoxBrush, DefaultPressedBoxBrush, DefaultCheckedBoxBrush;

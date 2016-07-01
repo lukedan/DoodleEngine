@@ -23,6 +23,13 @@ namespace DE {
 
 			unsigned char R = 255, G = 255, B = 255, A = 255;
 
+			friend bool operator ==(const Color &lhs, const Color &rhs) {
+				return lhs.A == rhs.A && lhs.R == rhs.R && lhs.G == rhs.G && lhs.B == rhs.B;
+			}
+			friend bool operator !=(const Color &lhs, const Color &rhs) {
+				return !(lhs == rhs);
+			}
+
 			double DoubleR() const {
 				return R / 255.0;
 			}

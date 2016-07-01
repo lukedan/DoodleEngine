@@ -98,7 +98,9 @@ class ControlTest : public Test {
 						switch (_program[_progPtr]) {
 							case _TEXT('<'): {
 								if (_stackPtr == 0) {
-									_father.runner.WriteLineWithColor(_TEXT("The pointer already points to the leftmost element in the array"), Color(255, 0, 0, 255));
+									_father.runner.SetCursorColor(Core::Color(255, 0, 0, 255));
+									_father.runner.WriteLine(_TEXT("The pointer already points to the leftmost element in the array"));
+									_father.runner.SetCursorColor(Core::Color(255, 255, 255, 255));
 									_progPtr = _program.Length();
 									_retCache = 1;
 								} else {
@@ -206,8 +208,8 @@ class ControlTest : public Test {
 					InitBallX = 18,
 					InitBallY = 12;
 				constexpr static double
-					MoveCD = 0.2,
-					FlyCD = 0.8;
+					MoveCD = 0.1,
+					FlyCD = 0.2;
 
 				enum class GameState {
 					MainMenu,
@@ -312,10 +314,13 @@ class ControlTest : public Test {
 							}
 							_father.SetAbsoluteCursorPosition(_boardX, ScreenHeight - 2);
 							for (size_t t = 0; t < BoardSize; ++t) {
+								_father.SetCursorColor(Color(255, 255, 0, 255));
 								_father.Write(_TEXT(":"));
 							}
 							_father.SetAbsoluteCursorPosition(_ballX, _ballY);
+							_father.SetCursorColor(Color(0, 255, 0, 255));
 							_father.Write(_TEXT("O"));
+							_father.SetCursorColor(Color(255, 255, 255, 255));
 							_father.SetAbsoluteCursorPosition(0, ScreenHeight);
 
 							if (_ballY == ScreenHeight - 2 || _bkc == 0) {
@@ -507,7 +512,9 @@ class ControlTest : public Test {
 								_father.Write(_TEXT("#"));
 								for (size_t x = 1; x < ScreenWidth - 1; ++x) {
 									if (_wall[x][y] == 2) {
+										_father.SetCursorColor(Color(100, 100, 255, 255));
 										_father.Write(_TEXT("*"));
+										_father.SetCursorColor(Color(255, 255, 255, 255));
 									} else if (_wall[x][y] == 1) {
 										_father.Write(_TEXT("#"));
 									} else {
@@ -560,7 +567,7 @@ class ControlTest : public Test {
 
 			FontFace textface("cambria.ttc", 18.0);
 			fnt = AutoFont(&context, textface);
-			FontFace consface("Inconsolata.otf", 13.0);
+			FontFace consface("Inconsolata.otf", 15.0);
 			consFnt = AutoFont(&context, consface);
 
 			//FileWriter writer(_TEXT("test.fnt"));
@@ -754,15 +761,38 @@ class ControlTest : public Test {
 			runner.Commands().InsertLeft(Command(_TEXT("beer"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String>&) {
 					for (int x = 99; x > 1; ) {
-						runner.WriteLine(ToString(x) + _TEXT(" bottles of beer on the wall, ") + ToString(x) + _TEXT(" bottles of beer."));
-						runner.WriteLine(_TEXT("Take one down and pass it around, ") + ToString(--x) + _TEXT(" bottles of beer on the wall."));
+						runner.SetCursorColor(Core::Color(255 - x * 2.55, x * 2.55, 0, 255));
+						runner.Write(ToString(x));
+						runner.SetCursorColor(Core::Color(255, 255, 255, 255));
+						runner.Write(_TEXT(" bottles of beer on the wall, "));
+						runner.SetCursorColor(Core::Color(255 - x * 2.55, x * 2.55, 0, 255));
+						runner.Write(ToString(x));
+						runner.SetCursorColor(Core::Color(255, 255, 255, 255));
+						runner.WriteLine(_TEXT(" bottles of beer."));
+						runner.Write(_TEXT("Take one down and pass it around, "));
+						--x;
+						runner.SetCursorColor(Core::Color(255 - x * 2.55, x * 2.55, 0, 255));
+						runner.Write(ToString(x));
+						runner.SetCursorColor(Core::Color(255, 255, 255, 255));
+						runner.WriteLine(_TEXT(" bottles of beer on the wall."));
 						runner.WriteLine(_TEXT(""));
 					}
-					runner.WriteLine(_TEXT("1 bottle of beer on the wall, 1 bottle of beer."));
+					runner.SetCursorColor(Core::Color(255, 0, 0, 255));
+					runner.Write(_TEXT("1"));
+					runner.SetCursorColor(Core::Color(255, 255, 255, 255));
+					runner.Write(_TEXT(" bottles of beer on the wall, "));
+					runner.SetCursorColor(Core::Color(255, 0, 0, 255));
+					runner.Write(_TEXT("1"));
+					runner.SetCursorColor(Core::Color(255, 255, 255, 255));
+					runner.WriteLine(_TEXT(" bottles of beer."));
 					runner.WriteLine(_TEXT("Take one down and pass it around, no more bottles of beer on the wall."));
 					runner.WriteLine(_TEXT(""));
 					runner.WriteLine(_TEXT("No more bottles of beer on the wall, no more bottles of beer."));
-					runner.WriteLine(_TEXT("Go to the store and buy some more, 99 bottles of beer on the wall."));
+					runner.Write(_TEXT("Go to the store and buy some more, "));
+					runner.SetCursorColor(Core::Color(0, 255, 0, 255));
+					runner.Write(_TEXT("99"));
+					runner.SetCursorColor(Core::Color(255, 255, 255, 255));
+					runner.WriteLine(_TEXT(" bottles of beer on the wall."));
 					return 0;
 				});
 			}));
@@ -823,14 +853,16 @@ class ControlTest : public Test {
 								from = NarrowString(args[2]),
 								to = NarrowString(args[3]);
 							if (!FileAccess::Exists(from)) {
-								runner.WriteLineWithColor(_TEXT("file ") + args[2] + _TEXT(" does not exist"), Color(255, 0, 0, 255));
+								runner.SetCursorColor(Color(255, 0, 0, 255));
+								runner.WriteLine(_TEXT("file ") + args[2] + _TEXT(" does not exist"));
 								return -1;
 							}
 							FileAccess r(from, FileAccessType::ReadBinary);
 							size_t sz = r.GetSize();
 							unsigned char *data = (unsigned char*)GlobalAllocator::Allocate(sz);
 							if (r.ReadBinaryRaw(data, sz) != sz) {
-								runner.WriteLineWithColor(_TEXT("cannot read the whole file"), Color(255, 0, 0, 255));
+								runner.SetCursorColor(Color(255, 0, 0, 255));
+								runner.WriteLine(_TEXT("cannot read the whole file"));
 								return -1;
 							}
 							zp.SetData(data, sz);
@@ -838,10 +870,7 @@ class ControlTest : public Test {
 							BitSet bs = zp.Zip();
 							FileAccess w(to, FileAccessType::NewWriteBinary);
 							w.WriteBinaryRaw(*bs, sizeof(BitSet::ChunkType) * bs.ChunkCount());
-							runner.WriteLineWithColor(
-								_TEXT("file successfully zipped, zipped size: ") + ToString(bs.ChunkCount()) + _TEXT(" bytes"),
-								Color(255, 255, 0, 255)
-							);
+							runner.WriteLine(_TEXT("file successfully zipped, zipped size: ") + ToString(bs.ChunkCount()) + _TEXT(" bytes"));
 							return 0;
 						} else if (args[1] == _TEXT("u")) {
 							Unzipper uzp;
@@ -849,14 +878,16 @@ class ControlTest : public Test {
 								from = NarrowString(args[2]),
 								to = NarrowString(args[3]);
 							if (!FileAccess::Exists(from)) {
-								runner.WriteLineWithColor(_TEXT("file ") + args[2] + _TEXT(" does not exist"), Color(255, 0, 0, 255));
+								runner.SetCursorColor(Color(255, 0, 0, 255));
+								runner.WriteLine(_TEXT("file ") + args[2] + _TEXT(" does not exist"));
 								return -1;
 							}
 							FileAccess rf(from, FileAccessType::ReadBinary);
 							size_t sz = rf.GetSize();
 							unsigned char *data = (unsigned char*)GlobalAllocator::Allocate(sz);
 							if (rf.ReadBinaryRaw(data, sz) != sz) {
-								runner.WriteLineWithColor(_TEXT("cannot read the whole file"), Color(255, 0, 0, 255));
+								runner.SetCursorColor(Color(255, 0, 0, 255));
+								runner.WriteLine(_TEXT("cannot read the whole file"));
 								return -1;
 							}
 							uzp.SetData(data, sz);
@@ -864,10 +895,7 @@ class ControlTest : public Test {
 							List<unsigned char> res = uzp.Unzip();
 							FileAccess rt(to, FileAccessType::NewWriteBinary);
 							rt.WriteBinaryRaw(*res, sizeof(unsigned char) * res.Count());
-							runner.WriteLineWithColor(
-								_TEXT("file successfully unzipped, unzipped size: ") + ToString(res.Count()) + _TEXT(" bytes"),
-								Color(255, 255, 0, 255)
-							);
+							runner.WriteLine(_TEXT("file successfully unzipped, unzipped size: ") + ToString(res.Count()) + _TEXT(" bytes"));
 							return 0;
 						}
 					}

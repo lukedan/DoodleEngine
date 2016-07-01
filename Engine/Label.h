@@ -4,7 +4,7 @@
 
 namespace DE {
 	namespace UI {
-		template <typename T/* = Graphics::TextRendering::BasicText*/> class Label : public ContentControl<T> {
+		template <typename T = Graphics::TextRendering::BasicText> class Label : public ContentControl<T> {
 				friend class World;
 			public:
 				Label() : ContentControl<T>() {

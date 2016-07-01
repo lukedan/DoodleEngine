@@ -16,7 +16,7 @@ namespace DE {
 			OnMouseDown,
 			OnMouseUp
 		};
-		template <typename T/* = Graphics::TextRendering::BasicText*/> class ButtonBase : public ContentControl<T> {
+		template <typename T = Graphics::TextRendering::BasicText> class ButtonBase : public ContentControl<T> {
 			public:
 				ButtonBase() : ContentControl<T>() {
 					this->_content.HorizontalAlignment = Graphics::TextRendering::HorizontalTextAlignment::Center;
@@ -78,7 +78,7 @@ namespace DE {
 					_state = ButtonState::Normal;
 				}
 		};
-		template <typename T/* = Graphics::TextRendering::BasicText*/> class Button : public ButtonBase<T> {
+		template <typename T = Graphics::TextRendering::BasicText> class Button : public ButtonBase<T> {
 			public:
 				Button() : ButtonBase<T>() {
 				}
@@ -174,7 +174,7 @@ namespace DE {
 					}
 				}
 		};
-		template <typename T/* = Graphics::TextRendering::BasicText*/> class SimpleButton : public Button<T> {
+		template <typename T = Graphics::TextRendering::BasicText> class SimpleButton : public Button<T> {
 			public:
 				SimpleButton() : Button<T>() {
 				}

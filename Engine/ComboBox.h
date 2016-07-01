@@ -12,7 +12,7 @@ namespace DE {
 	namespace UI {
 		template <typename T> struct ComboBoxSelectionChangedInfo;
 		// TODO make ComboBox inherit from Button or ButtonBase
-		template <typename T/* = Graphics::TextRendering::BasicText*/> class SimpleComboBox : public SimpleButton<T> { // TODO: restore the FitContentHeight() calls
+		template <typename T = Graphics::TextRendering::BasicText> class SimpleComboBox : public SimpleButton<T> { // TODO: restore the FitContentHeight() calls
 			public:
 				const static Graphics::SolidBrush DefaultNormalBrush, DefaultHoverBrush, DefaultPressedBrush, DefaultSelectedBrush;
 				constexpr static double ArrowSize = 5.0;

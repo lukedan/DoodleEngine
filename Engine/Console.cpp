@@ -19,21 +19,13 @@ namespace DE {
 				_father->_output.WriteLine(str);
 			}
 		}
-		void ConsoleRunnerBase::WriteLineWithColor(const Core::String &str, const Core::Color &c) {
+		void ConsoleRunnerBase::SetCursorColor(const Core::Color &c) {
 			if (_father) {
-				Color last = _father->_output.GetLineColor();
-				_father->_output.SetLineColor(c);
-				_father->_output.WriteLine(str);
-				_father->_output.SetLineColor(last);
+				_father->_output.SetCursorColor(c);
 			}
 		}
-		void ConsoleRunnerBase::SetLineColor(const Core::Color &c) {
-			if (_father) {
-				_father->_output.SetLineColor(c);
-			}
-		}
-		Core::Color ConsoleRunnerBase::GetLineColor() const {
-			return (_father != nullptr ? _father->_output.GetLineColor() : Color());
+		Core::Color ConsoleRunnerBase::GetCursorColor() const {
+			return (_father != nullptr ? _father->_output.GetCursorColor() : Color());
 		}
 		void ConsoleRunnerBase::ClearConsole() {
 			if (_father) {
@@ -76,6 +68,7 @@ namespace DE {
 					_curCommand->OnInput(str);
 				}
 			} else {
+				SetCursorColor(Core::Color(255, 255, 255, 255));
 				if (EchoCommand) {
 					if (_father->OutputTextBox().GetCursorX() > 0) {
 						WriteLine(_TEXT(""));
@@ -101,7 +94,8 @@ namespace DE {
 					return true;
 				});
 				if (exec == nullptr) {
-					WriteLineWithColor(_TEXT("No such command: ") + parsed[0], Core::Color(255, 0, 0, 255));
+					SetCursorColor(Core::Color(255, 0, 0, 255));
+					WriteLine(_TEXT("No such command: ") + parsed[0]);
 					return;
 				}
 				_curCommand = exec->GetExecutable()(parsed);

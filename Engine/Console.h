@@ -5,7 +5,7 @@
 
 namespace DE {
 	namespace UI {
-		class SimpleConsoleTextBox : public PanelBase {
+		class SimpleConsoleTextBox : public PanelBase { // TODO make it ra1nbow
 			public:
 				constexpr static size_t DefaultBufferHeight = 800, DefaultBufferWidth = 80;
 				constexpr static double DefaultCaretPhase = 0.5;
@@ -72,11 +72,11 @@ namespace DE {
  					return static_cast<int>(_crsrY) - static_cast<int>(_cFVisLine);
  				}
 
- 				virtual Core::Color GetLineColor() const {
- 					return _buf[GetLineID(_crsrY)].LineColor;
+ 				virtual Core::Color GetCursorColor() const {
+ 					return _cursorColor;
  				}
- 				virtual void SetLineColor(const Core::Color &c) {
- 					_buf[GetLineID(_crsrY)].LineColor = c;
+ 				virtual void SetCursorColor(const Core::Color &c) {
+ 					_cursorColor = c;
  				}
 
 				virtual void Write(const Core::String &str) {
@@ -91,6 +91,7 @@ namespace DE {
 							for (size_t i = _tabSize - (_crsrX % _tabSize); i > 0; ) {
 								--i;
 								curL->Line[_crsrX] = _TEXT(' ');
+								curL->CharColors[_crsrX] = _cursorColor;
 								if ((++_crsrX) == DefaultBufferWidth) {
 									NextLine();
 									curL = &(_buf[GetLineID(_crsrY)]);
@@ -101,6 +102,7 @@ namespace DE {
 								continue;
 							}
 							curL->Line[_crsrX] = c;
+							curL->CharColors[_crsrX] = _cursorColor;
 							if ((++_crsrX) == DefaultBufferWidth) {
 								NextLine();
 								curL = &(_buf[GetLineID(_crsrY)]);
@@ -148,11 +150,11 @@ namespace DE {
 				}
 			protected:
 				struct ConsoleLine {
-					ConsoleLine() : Line(_TEXT(' '), DefaultBufferWidth) {
+					ConsoleLine() : Line(_TEXT(' '), DefaultBufferWidth), CharColors(Core::Color(), DefaultBufferWidth) {
 					}
 
 					Core::String Line;
-					Core::Color LineColor;
+					Core::Collections::List<Core::Color> CharColors;
 				};
 
 				size_t
@@ -168,6 +170,7 @@ namespace DE {
 				const Graphics::TextRendering::Font *_fnt = nullptr;
 				const Graphics::Brush *_caretBrush = nullptr;
 				bool _myScroll = false;
+				Core::Color _cursorColor;
 
 				size_t GetLineID(size_t line) const {
 					size_t res = _endBuf + line + 1;
@@ -177,7 +180,6 @@ namespace DE {
 					return res;
 				}
 				virtual void NextLine() {
-					Core::Color lastColor = _buf[GetLineID(_crsrY)].LineColor;
 					if (_crsrY == _bufSize - 1) {
 						if ((++_endBuf) >= _bufSize) {
 							_endBuf -= _bufSize;
@@ -187,8 +189,6 @@ namespace DE {
 					} else {
 						++_crsrY;
 					}
-					ConsoleLine &cur = _buf[GetLineID(_crsrY)];
-					cur.LineColor = lastColor;
 					_crsrX = 0;
 				}
 
@@ -257,28 +257,46 @@ namespace DE {
 				}
 				virtual void Render(Graphics::Renderer &r) override {
 					if (_fnt != nullptr) {
-						Graphics::TextRendering::BasicText tmp;
+						Graphics::TextRendering::StreamedRichText tmp;
 						tmp.Padding = Core::Math::Rectangle();
 						tmp.LayoutRectangle = Core::Math::Rectangle(
 							GetActualLayout().Left, GetActualLayout().Top, GetActualSize().Width, _fnt->GetHeight()
 						);
-						tmp.Font = _fnt;
 						ForEachVisibleLine([&](size_t id, size_t lineID) {
+							tmp.Changes.Clear();
 							const ConsoleLine &cLine = _buf[id];
 							tmp.Content = cLine.Line;
-							tmp.TextColor = cLine.LineColor;
+							decltype(tmp)::ChangeInfo ci(0, decltype(tmp)::ChangeType::Font);
+							ci.Parameters.NewFont = _fnt;
+							tmp.Changes.PushBack(ci);
+							Core::Color lastColor = cLine.CharColors[0];
+							ci.Position = 0;
+							ci.Type = decltype(tmp)::ChangeType::Color;
+							ci.Parameters.NewColor.A = lastColor.A;
+							ci.Parameters.NewColor.R = lastColor.R;
+							ci.Parameters.NewColor.G = lastColor.G;
+							ci.Parameters.NewColor.B = lastColor.B;
+							tmp.Changes.PushBack(ci);
+							for (size_t i = 1; i < cLine.CharColors.Count(); ++i) {
+								if (cLine.CharColors[i] != lastColor) {
+									ci.Position = i;
+									lastColor = cLine.CharColors[i];
+									ci.Parameters.NewColor.A = lastColor.A;
+									ci.Parameters.NewColor.R = lastColor.R;
+									ci.Parameters.NewColor.G = lastColor.G;
+									ci.Parameters.NewColor.B = lastColor.B;
+									tmp.Changes.PushBack(ci);
+								}
+							}
 							tmp.Render(r);
 							if (_caretTime < DefaultCaretPhase) {
 								if (lineID == _crsrY) {
-									Core::Collections::List<Core::Math::Rectangle> list = tmp.GetSelectionRegion(_crsrX, _crsrX + 1);
-									list.ForEach([&](const Core::Math::Rectangle &rect) {
-										if (_caretBrush) {
-											_caretBrush->FillRect(rect, r);
-										} else {
-											DefaultCaretBrush.FillRect(rect, r);
-										}
-										return true;
-									});
+									Core::Math::Rectangle rect = tmp.GetCaretInfo(_crsrX);
+									if (_caretBrush) {
+										_caretBrush->FillRect(rect, r);
+									} else {
+										DefaultCaretBrush.FillRect(rect, r);
+									}
 								}
 							}
 							tmp.LayoutRectangle.Top += _fnt->GetHeight();
@@ -303,9 +321,8 @@ namespace DE {
 
 				virtual void Write(const Core::String&);
 				virtual void WriteLine(const Core::String&);
-				virtual void WriteLineWithColor(const Core::String&, const Core::Color&);
-				virtual void SetLineColor(const Core::Color&);
-				virtual Core::Color GetLineColor() const;
+				virtual void SetCursorColor(const Core::Color&);
+				virtual Core::Color GetCursorColor() const;
 				virtual void ClearConsole();
 
 				virtual void SetAbsoluteCursorPosition(size_t, size_t);
@@ -464,10 +481,8 @@ namespace DE {
 							}
 							case CommandState::Terminated: {
 								if (_curCommand->GetReturnValue() != 0) {
-									WriteLineWithColor(
-										_TEXT("Command terminated with return value ") + Core::ToString(_curCommand->GetReturnValue()),
-										Core::Color(255, 0, 0, 255)
-									);
+									SetCursorColor(Core::Color(255, 0, 0, 255));
+									WriteLine(_TEXT("Command terminated with return value ") + Core::ToString(_curCommand->GetReturnValue()));
 								}
 								_curCommand->~RunningCommand();
 								Core::GlobalAllocator::Free(_curCommand);

@@ -5,7 +5,7 @@
 
 namespace DE {
 	namespace UI {
-		template <typename T/* = Graphics::TextRendering::BasicText*/> class ContentControl : public Control {
+		template <typename T = Graphics::TextRendering::BasicText> class ContentControl : public Control {
 			public:
 				virtual ~ContentControl() {
 					StaticAssert(
