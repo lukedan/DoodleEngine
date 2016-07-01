@@ -161,7 +161,7 @@ namespace DE {
 				Vector2 pos(_GetLineBegin(cc.LineLengths[0], txt), _GetLayoutTop(cc, txt));
 				List<Vertex> vs;
 				size_t lstpg = txt.Font->GetTextureInfo(txt.Content[0]).Page;
-				for (size_t i = 0; i < txt.Content.Length(); ++i) { // TODO: improve performance
+				for (size_t i = 0; i < txt.Content.Length(); ++i) {
 					const CharData &data = txt.Font->GetData(txt.Content[i]);
 					AtlasTexture ctex = txt.Font->GetTextureInfo(data.Character);
 					Vector2 aRPos = pos;
@@ -299,17 +299,15 @@ namespace DE {
 					over = (caret = lend) - 1;
 				}
 			}
-			Vector2 BasicText::DoGetRelativeCaretPosition(
+			Vector2 BasicText::DoGetRelativeCaretPositionImpl(
 				const BasicTextFormatCache &cache,
 				const BasicText &text,
 				size_t caret,
-				bool useBaseline,
-				double baselinePos
+				size_t line
 			) {
 				if (caret > text.Content.Length()) {
 					throw InvalidArgumentException(_TEXT("caret index overflow"));
 				}
-				size_t line = (useBaseline ? DoGetLineOfCaret(cache, text, caret, baselinePos) : DoGetLineOfCaret(cache, text, caret));
 				Vector2 pos(0.0, line * text.Font->GetHeight()); // no need to multiply Scale, for it's done later
 				for (size_t ls = (line == 0 ? 0 : cache.LineBreaks[line - 1] + 1); ls < caret; ++ls) {
 					pos.X += text.Font->GetData(text.Content[ls]).Advance;
@@ -318,6 +316,17 @@ namespace DE {
 					_GetRelativeLineBegin(cache.LineLengths[line], text),
 					_GetRelativeLayoutTop(cache, text)
 				) + pos * text.Scale;
+			}
+			Vector2 BasicText::DoGetCaretSizeImpl(const BasicTextFormatCache &cache, const BasicText &txt, size_t caret, size_t line) {
+				TCHAR c = _TEXT('\n');
+				if (caret < txt.Content.Length()) {
+					if (line < cache.LineBreaks.Count() && caret > cache.LineBreaks[line]) {
+						c = _TEXT('\n');
+					} else {
+						c = txt.Content[caret];
+					}
+				}
+				return Vector2(txt.Font->GetData(c).Advance, txt.Font->GetHeight()) * txt.Scale;
 			}
 			size_t BasicText::DoGetLineOfCaret(
 				const BasicTextFormatCache &cache,
@@ -370,13 +379,17 @@ namespace DE {
 					pos = _GetLineBegin(cache.LineLengths[line], text);
 				}
 			}
-			void BasicText::DoGetLineCursorEnding(const BasicTextFormatCache &cache, const BasicText &text, size_t line, size_t &caret, double &pos) { // FIXME bug here
+			void BasicText::DoGetLineCursorEnding(const BasicTextFormatCache &cache, const BasicText &text, size_t line, size_t &caret, double &pos) {
 				pos = _GetLineEnd(cache.LineLengths[line], text);
-				caret = (line < cache.LineBreaks.Count() ? cache.LineBreaks[line] : text.Content.Length());
-				if (line < cache.LineBreaks.Count() && text.Content[caret] == _TEXT('\n')) {
-					pos -= text.Font->GetData(_TEXT('\n')).Advance * text.Scale;
+				if (line == cache.LineBreaks.Count()) {
+					caret = text.Content.Length();
 				} else {
-					++caret;
+					caret = cache.LineBreaks[line];
+					if (text.Content[caret] == _TEXT('\n')) {
+						pos -= text.Font->GetData(_TEXT('\n')).Advance * text.Scale;
+					} else {
+						++caret;
+					}
 				}
 			}
 			void BasicText::DoGetLineEnding(const BasicTextFormatCache &cache, const BasicText &text, size_t line, size_t &caret, double &pos) {
@@ -423,6 +436,14 @@ namespace DE {
 				}
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetSelectionRegion, start, end);
 				return Core::Collections::List<Core::Math::Rectangle>();
+			}
+			Vector2 BasicText::GetCaretSize(size_t caret, double baseline) const {
+				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretSize, caret, baseline);
+				return Vector2();
+			}
+			Math::Rectangle BasicText::GetCaretInfo(size_t caret, double baseline) const {
+				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretInfoWithBaseline, caret, baseline);
+				return Vector2();
 			}
 			size_t BasicText::GetLineOfCaret(size_t caret) const {
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineOfCaret, caret);
@@ -774,47 +795,47 @@ namespace DE {
 					over = (caret = end) - 1;
 				}
 			}
-			void StreamedRichText::DoGetCaretPositionAndHeight(
+			Math::Rectangle StreamedRichText::DoGetCaretInfoImpl(
 				const StreamedRichTextFormatCache &cache,
 				const StreamedRichText &txt,
 				size_t caret,
-				bool useBaseline,
-				double baseline,
-				Core::Math::Vector2 &pos,
-				double &h
+				size_t line
 			) {
-				size_t
-					line = (useBaseline ? DoGetLineOfCaret(cache, txt, caret, baseline) : DoGetLineOfCaret(cache, txt, caret)),
-					lb = 0,
-					changeID = 0;
+				size_t beg = 0, changeID = 0, pastend = (line < cache.LineBreaks.Count() ? cache.LineBreaks[line] + 1 : txt.Content.Length());
 				TextFormatInfo ti;
 				if (line > 0) {
-					ti = cache.LineEndFormat[line - 1];
-					lb = cache.LineBreaks[line - 1] + 1;
+					beg = cache.LineBreaks[line - 1] + 1;
 					changeID = cache.LineEndChangeIDs[line - 1];
+					ti = cache.LineEndFormat[line - 1];
 				}
-				pos.X = _GetLineBegin(cache.LineLengths[line], txt);
-				for (size_t i = lb; i < caret; ++i) {
-					while (changeID < txt.Changes.Count() && i == txt.Changes[changeID].Position) {
+				Vector2 pos(_GetLineBegin(cache.LineLengths[line], txt), _GetLayoutTop(cache, txt));
+				for (size_t i = 0; i < line; ++i) {
+					pos.Y += cache.LineHeights[i];
+				}
+				for (size_t cur = beg; cur < caret; ++cur) {
+					while (changeID < txt.Changes.Count() && txt.Changes[changeID].Position == cur) {
 						ti.ApplyChange(txt.Changes[changeID]);
 						++changeID;
 					}
 					if (ti.Font) {
-						pos.X += ti.Font->GetData(txt.Content[i]).Advance * ti.Scale;
+						pos.X += ti.Font->GetData(txt.Content[cur]).Advance * ti.Scale;
 					}
 				}
-				if (lb == caret && lb < txt.Content.Length()) { // at the beginning of the line
-					while (changeID < txt.Changes.Count() && lb == txt.Changes[changeID].Position) {
+				TCHAR gc = _TEXT('\n');
+				if (caret < pastend) {
+					while (changeID < txt.Changes.Count() && txt.Changes[changeID].Position == caret) {
 						ti.ApplyChange(txt.Changes[changeID]);
 						++changeID;
 					}
+					gc = txt.Content[caret];
 				}
-				pos.Y = DoGetLineTop(cache, txt, line);
+				Vector2 sz;
 				if (ti.Font) {
-					pos.Y += (cache.LineHeights[line] - (h = ti.Font->GetHeight() * ti.Scale)) * ti.LocalVerticalPosition;
-				} else {
-					h = 0.0;
+					sz.X = ti.Font->GetData(gc).Advance * ti.Scale;
+					sz.Y = ti.Font->GetHeight() * ti.Scale;
+					pos.Y += (cache.LineHeights[line] - sz.Y) * ti.LocalVerticalPosition;
 				}
+				return Math::Rectangle(pos.X, pos.Y, sz.X, sz.Y);
 			}
 			size_t StreamedRichText::DoGetLineOfCaret(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t caret, double baseline) {
 				size_t line = 0;
@@ -901,11 +922,13 @@ namespace DE {
 			void StreamedRichText::HitTest(const Core::Math::Vector2 &pt, size_t &over, size_t &caret) const {
 				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoHitTest, pt, over, caret);
 			}
-			void StreamedRichText::GetCaretInfo(size_t caret, Core::Math::Vector2 &pos, double &h) const {
-				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetCaretPositionAndHeight, caret, false, 0.0, pos, h);
+			Math::Rectangle StreamedRichText::GetCaretInfo(size_t caret) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretInfo, caret);
+				return Math::Rectangle();
 			}
-			void StreamedRichText::GetCaretInfo(size_t caret, double baseline, Core::Math::Vector2 &pos, double &h) const {
-				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetCaretPositionAndHeight, caret, true, baseline, pos, h);
+			Math::Rectangle StreamedRichText::GetCaretInfo(size_t caret, double baseline) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretInfo, caret, baseline);
+				return Math::Rectangle();
 			}
 			size_t StreamedRichText::GetLineOfCaret(size_t caret) const {
 				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineOfCaret, caret);

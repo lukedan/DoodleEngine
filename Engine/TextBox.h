@@ -59,15 +59,14 @@ namespace DE {
 				}
 
 				virtual void MakeCaretInView() {
-					Core::Math::Vector2 caret;
-					double h;
-					_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, caret, h);
-					caret -= _lbl.Content().LayoutRectangle.TopLeft();
-					MakePointInView(caret + Core::Math::Vector2(0.0, h));
-					MakePointInView(caret);
-					if (!_insert) {
-						MakePointInView(caret + Core::Math::Vector2(GetOverwriteModeCaretWidth(), 0.0));
+					Core::Math::Rectangle caret = _lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+					caret.Translate(-_lbl.GetActualLayout().TopLeft());
+					if (_insert) {
+						MakePointInView(caret.BottomLeft());
+					} else {
+						MakePointInView(caret.BottomRight());
 					}
+					MakePointInView(caret.TopLeft());
 					_blink = 0.0;
 				}
 				virtual void MoveCaret(size_t newPosition) {
@@ -211,17 +210,19 @@ namespace DE {
 					ScrollViewBase::RenderChild(r, c);
 					if (Focused() && _blink < _period * 0.5) {
 						Core::Collections::List<Core::Math::Vector2> caret;
-						Core::Math::Vector2 pos;
-						double dy;
-						_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, pos, dy);
-						pos.Y += dy;
-						caret.PushBack(pos);
+						Core::Math::Rectangle crect = _lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+						caret.PushBack(crect.BottomLeft());
 						if (_insert) {
-							pos.Y -= dy;
+							caret.PushBack(crect.TopLeft());
 						} else {
-							pos.X += GetOverwriteModeCaretWidth();
+							caret.PushBack(crect.BottomRight());
+							caret.PushBack(crect.BottomRight());
+							caret.PushBack(crect.TopRight());
+							caret.PushBack(crect.TopRight());
+							caret.PushBack(crect.TopLeft());
+							caret.PushBack(crect.TopLeft());
+							caret.PushBack(crect.BottomLeft());
 						}
-						caret.PushBack(pos);
 						if (_caretPen) {
 							_caretPen->DrawLines(caret, r);
 						} else {
@@ -237,17 +238,6 @@ namespace DE {
 						brush->FillRect(rect, r);
 						return true;
 					});
-				}
-				double GetOverwriteModeCaretWidth() const {
-//					double rawResult;
-//					if (_caret >= _lbl.Content().Content.Length()) {
-//						rawResult = _lbl.Content().Font->GetData(_TEXT('\n')).Advance;
-//					} else {
-//						rawResult = _lbl.Content().Font->GetData(_lbl.Content().Content[_caret]).Advance;
-//					}
-//					return rawResult * _lbl.Content().Scale;
-					// testing
-					return 0.0;
 				}
 
 				void ResetChildrenLayout() override {

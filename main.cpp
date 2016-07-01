@@ -710,9 +710,11 @@ class ControlTest : public Test {
 //			tBox.Text().TextColor = Color(0, 0, 0, 255);
 //			tBox.Text().Font = &fnt;
 //			tBox.Text().TextColor = Color(0, 0, 0, 255);
+
 			// tests below have passed
 //			tBox.Text().Scale = 1.5;
 //			tBox.Text().HorizontalAlignment = HorizontalTextAlignment::Center; // only locally centered
+
 			tBox.SetAnchor(Anchor::TopDock);
 			tBox.SetSize(Size(0.0, fnt.GetHeight() * 10));
 			tBox.SetMargins(Thickness(10.0));
