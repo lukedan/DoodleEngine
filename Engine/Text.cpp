@@ -21,16 +21,6 @@ namespace DE {
 					}
 				}
 			}
-			double _GetLineBegin(double lineLen, const BasicText &txt) {
-				return _GetLineBegin(
-					lineLen, txt.LayoutRectangle.Left, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
-				);
-			}
-			double _GetRelativeLineBegin(double lineLen, const BasicText &txt) {
-				return _GetLineBegin(
-					lineLen, 0.0, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
-				);
-			}
 			double _GetLineEnd(double lineLen, double layoutLeft, double layoutWidth, double lPad, double rPad, HorizontalTextAlignment align) {
 				switch (align) {
 					case HorizontalTextAlignment::Center: {
@@ -43,16 +33,6 @@ namespace DE {
 						return layoutLeft + lineLen - lPad;
 					}
 				}
-			}
-			double _GetLineEnd(double lineLen, const BasicText &txt) {
-				return _GetLineEnd(
-					lineLen, txt.LayoutRectangle.Left, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
-				);
-			}
-			double _GetRelativeLineEnd(double lineLen, const BasicText &txt) {
-				return _GetLineEnd(
-					lineLen, 0.0, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
-				);
 			}
 			double _GetLayoutTop(double vertLen, double layoutTop, double layoutHeight, double tPad, double bPad, VerticalTextAlignment align) {
 				switch (align) {
@@ -67,16 +47,6 @@ namespace DE {
 					}
 				}
 			}
-			double _GetLayoutTop(const BasicText::BasicTextFormatCache &cc, const BasicText &txt) {
-				return _GetLayoutTop(
-					cc.Size.Y, txt.LayoutRectangle.Top, txt.LayoutRectangle.Height(), txt.Padding.Top, txt.Padding.Bottom, txt.VerticalAlignment
-				);
-			}
-			double _GetRelativeLayoutTop(const BasicText::BasicTextFormatCache &cc, const BasicText &txt) {
-				return _GetLayoutTop(
-					cc.Size.Y, 0.0, txt.LayoutRectangle.Height(), txt.Padding.Top, txt.Padding.Bottom, txt.VerticalAlignment
-				);
-			}
 
 			void _AddRectangleToListWithClip(List<Math::Rectangle> &list, const Math::Rectangle &r, const Math::Rectangle &clip, bool useClip) {
 				if (useClip) {
@@ -87,6 +57,38 @@ namespace DE {
 				} else {
 					list.PushBack(r);
 				}
+			}
+
+			// auxiliary functions for BasicText
+			double _GetLineBegin(double lineLen, const BasicText &txt) {
+				return _GetLineBegin(
+					lineLen, txt.LayoutRectangle.Left, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetRelativeLineBegin(double lineLen, const BasicText &txt) {
+				return _GetLineBegin(
+					lineLen, 0.0, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetLineEnd(double lineLen, const BasicText &txt) {
+				return _GetLineEnd(
+					lineLen, txt.LayoutRectangle.Left, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetRelativeLineEnd(double lineLen, const BasicText &txt) {
+				return _GetLineEnd(
+					lineLen, 0.0, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetLayoutTop(const BasicText::BasicTextFormatCache &cc, const BasicText &txt) {
+				return _GetLayoutTop(
+					cc.Size.Y, txt.LayoutRectangle.Top, txt.LayoutRectangle.Height(), txt.Padding.Top, txt.Padding.Bottom, txt.VerticalAlignment
+				);
+			}
+			double _GetRelativeLayoutTop(const BasicText::BasicTextFormatCache &cc, const BasicText &txt) {
+				return _GetLayoutTop(
+					cc.Size.Y, 0.0, txt.LayoutRectangle.Height(), txt.Padding.Top, txt.Padding.Bottom, txt.VerticalAlignment
+				);
 			}
 
 			void BasicText::DoCache(
@@ -108,7 +110,7 @@ namespace DE {
 				for (size_t i = 0; i < txt.Content.Length(); ++i) {
 					TCHAR curc = txt.Content[i];
 					const CharData &cData = txt.Font->GetData(curc);
-					curw += cData.Advance;
+					curw += cData.Advance * txt.Scale;
 					bool breaknow = curw > txt.LayoutRectangle.Width() - txt.Padding.Width() && hasBreakable;
 					if (curc == _TEXT('\n') && !breaknow) {
 						breaknow = true;
@@ -147,23 +149,19 @@ namespace DE {
 					}
 				}
 				BASICTEXT_ON_NEWLINE(curw);
-				cache.Size.Y = cache.LineLengths.Count() * txt.Font->GetHeight();
+				cache.Size.Y = cache.LineLengths.Count() * txt.Font->GetHeight() * txt.Scale;
 #undef BASICTEXT_SET_LASTBREAK_TO_CURRENT
 #undef BASICTEXT_ON_NEWLINE
 			}
 			void BasicText::DoRender(const BasicTextFormatCache &cc, const BasicText &txt, Renderer &r) {
-				if (r.GetContext() == nullptr || txt.Font == nullptr || txt.Content.Empty() || cc.LineLengths.Count() == 0) {
+				if (txt.Content.Empty() || txt.Font == nullptr || cc.LineLengths.Count() == 0) {
 					return;
 				}
 				size_t curB = 0;
-				Vector2 pos(
-					_GetLineBegin(cc.LineLengths[0], txt),
-					_GetLayoutTop(cc, txt)
-				);
-				pos.X = _GetLineBegin(cc.LineLengths[0], txt);
+				Vector2 pos(_GetLineBegin(cc.LineLengths[0], txt), _GetLayoutTop(cc, txt));
 				List<Vertex> vs;
 				size_t lstpg = txt.Font->GetTextureInfo(txt.Content[0]).Page;
-				for (size_t i = 0; i < txt.Content.Length(); ++i) { // TODO: improve performance
+				for (size_t i = 0; i < txt.Content.Length(); ++i) {
 					const CharData &data = txt.Font->GetData(txt.Content[i]);
 					AtlasTexture ctex = txt.Font->GetTextureInfo(data.Character);
 					Vector2 aRPos = pos;
@@ -185,7 +183,7 @@ namespace DE {
 					}
 					if (drd) {
 						if (ctex.Page != lstpg) {
-							r<<txt.Font->GetTexture(lstpg);
+							r.SetTexture(txt.Font->GetTexture(lstpg));
 							r.DrawVertices(vs, RenderMode::Triangles);
 							lstpg = ctex.Page;
 							vs.Clear();
@@ -205,7 +203,7 @@ namespace DE {
 					}
 				}
 				if (vs.Count() > 0) {
-					r<<txt.Font->GetTexture(lstpg);
+					r.SetTexture(txt.Font->GetTexture(lstpg));
 					r.DrawVertices(vs, RenderMode::Triangles);
 				}
 				r<<Texture();
@@ -301,14 +299,15 @@ namespace DE {
 					over = (caret = lend) - 1;
 				}
 			}
-			Vector2 BasicText::DoGetRelativeCaretPosition(
+			Vector2 BasicText::DoGetRelativeCaretPositionImpl(
 				const BasicTextFormatCache &cache,
 				const BasicText &text,
 				size_t caret,
-				bool useBaseline,
-				double baselinePos
+				size_t line
 			) {
-				size_t line = (useBaseline ? DoGetLineOfCaret(cache, text, caret, baselinePos) : DoGetLineOfCaret(cache, text, caret));
+				if (caret > text.Content.Length()) {
+					throw InvalidArgumentException(_TEXT("caret index overflow"));
+				}
 				Vector2 pos(0.0, line * text.Font->GetHeight()); // no need to multiply Scale, for it's done later
 				for (size_t ls = (line == 0 ? 0 : cache.LineBreaks[line - 1] + 1); ls < caret; ++ls) {
 					pos.X += text.Font->GetData(text.Content[ls]).Advance;
@@ -318,6 +317,17 @@ namespace DE {
 					_GetRelativeLayoutTop(cache, text)
 				) + pos * text.Scale;
 			}
+			Vector2 BasicText::DoGetCaretSizeImpl(const BasicTextFormatCache &cache, const BasicText &txt, size_t caret, size_t line) {
+				TCHAR c = _TEXT('\n');
+				if (caret < txt.Content.Length()) {
+					if (line < cache.LineBreaks.Count() && caret > cache.LineBreaks[line]) {
+						c = _TEXT('\n');
+					} else {
+						c = txt.Content[caret];
+					}
+				}
+				return Vector2(txt.Font->GetData(c).Advance, txt.Font->GetHeight()) * txt.Scale;
+			}
 			size_t BasicText::DoGetLineOfCaret(
 				const BasicTextFormatCache &cache,
 				const BasicText &text,
@@ -326,19 +336,18 @@ namespace DE {
 			) {
 				size_t line = 0;
 				bool end = false;
-				TCHAR endchar = _TEXT('\n');
 				cache.LineBreaks.ForEach([&](size_t breakpos) {
 					if (breakpos < caret) {
 						++line;
 						if (breakpos + 1 == caret) {
 							end = true;
-							endchar = text.Content[breakpos];
+							return false;
 						}
 						return true;
 					}
 					return false;
 				});
-				if (end && endchar != _TEXT('\n')) { // very suspicious
+				if (end && text.Content[caret - 1] != _TEXT('\n')) { // very suspicious
 					double midpvt = cache.LineLengths[line - 1];
 					midpvt = _GetLineBegin(midpvt, text) + 0.5 * midpvt;
 					if (baselinePos > midpvt) {
@@ -371,28 +380,21 @@ namespace DE {
 				}
 			}
 			void BasicText::DoGetLineCursorEnding(const BasicTextFormatCache &cache, const BasicText &text, size_t line, size_t &caret, double &pos) {
-				if (line >= cache.LineBreaks.Count()) {
+				pos = _GetLineEnd(cache.LineLengths[line], text);
+				if (line == cache.LineBreaks.Count()) {
 					caret = text.Content.Length();
-					pos = _GetLineEnd(cache.LineLengths.Last(), text);
 				} else {
-					size_t lb = cache.LineBreaks[line];
-					if (text.Content[lb] == _TEXT('\n')) {
-						caret = lb;
-						pos = _GetLineEnd(cache.LineLengths[line], text) - text.Font->GetData(_TEXT('\n')).Advance * text.Scale;
+					caret = cache.LineBreaks[line];
+					if (text.Content[caret] == _TEXT('\n')) {
+						pos -= text.Font->GetData(_TEXT('\n')).Advance * text.Scale;
 					} else {
-						caret = lb + 1;
-						pos = _GetLineEnd(cache.LineLengths[line], text);
+						++caret;
 					}
 				}
 			}
 			void BasicText::DoGetLineEnding(const BasicTextFormatCache &cache, const BasicText &text, size_t line, size_t &caret, double &pos) {
-				if (line >= cache.LineBreaks.Count()) {
-					caret = text.Content.Length();
-					pos = _GetLineEnd(cache.LineLengths.Last(), text);
-				} else {
-					caret = cache.LineBreaks[line] + 1;
-					pos = _GetLineEnd(cache.LineLengths[line], text);
-				}
+				caret = (line >= cache.LineBreaks.Count() ? text.Content.Length() : cache.LineBreaks[line] + 1);
+				pos = _GetLineEnd(cache.LineLengths[line], text);
 			}
 			double BasicText::DoGetLineTop(const BasicTextFormatCache &cache, const BasicText &text, size_t line) {
 				if (line >= cache.LineLengths.Count()) {
@@ -435,6 +437,14 @@ namespace DE {
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetSelectionRegion, start, end);
 				return Core::Collections::List<Core::Math::Rectangle>();
 			}
+			Vector2 BasicText::GetCaretSize(size_t caret, double baseline) const {
+				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretSize, caret, baseline);
+				return Vector2();
+			}
+			Math::Rectangle BasicText::GetCaretInfo(size_t caret, double baseline) const {
+				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretInfoWithBaseline, caret, baseline);
+				return Vector2();
+			}
 			size_t BasicText::GetLineOfCaret(size_t caret) const {
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineOfCaret, caret);
 				return 0;
@@ -460,16 +470,10 @@ namespace DE {
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(DoHitTest, pos, over, caret);
 			}
 			Vector2 BasicText::GetRelativeCaretPosition(size_t caret) const {
-				if (caret > Content.Length()) {
-					throw InvalidArgumentException(_TEXT("caret index overflow"));
-				}
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetRelativeCaretPosition, caret, false, 0.0);
 				return Vector2();
 			}
 			Vector2 BasicText::GetRelativeCaretPosition(size_t caret, double baseline) const {
-				if (caret > Content.Length()) {
-					throw InvalidArgumentException(_TEXT("caret index overflow"));
-				}
 				BASICTEXT_NEEDCACHE_FUNC_IMPL(return DoGetRelativeCaretPosition, caret, true, baseline);
 				return Vector2();
 			}
@@ -485,10 +489,44 @@ namespace DE {
 #undef BASICTEXT_NEEDCACHE_FUNC_IMPL
 #undef BASICTEXT_NEEDCACHE_FUNC_IMPL_NOPARAM
 
+			// auxiliary functions for StreamedRichText
+			double _GetLineBegin(double lineLen, const StreamedRichText &txt) {
+				return _GetLineBegin(
+					lineLen, txt.LayoutRectangle.Left, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetRelativeLineBegin(double lineLen, const StreamedRichText &txt) {
+				return _GetLineBegin(
+					lineLen, 0.0, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetLineEnd(double lineLen, const StreamedRichText &txt) {
+				return _GetLineEnd(
+					lineLen, txt.LayoutRectangle.Left, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetRelativeLineEnd(double lineLen, const StreamedRichText &txt) {
+				return _GetLineEnd(
+					lineLen, 0.0, txt.LayoutRectangle.Width(), txt.Padding.Left, txt.Padding.Right, txt.HorizontalAlignment
+				);
+			}
+			double _GetLayoutTop(const StreamedRichText::StreamedRichTextFormatCache &cc, const StreamedRichText &txt) {
+				return _GetLayoutTop(
+					cc.Size.Y, txt.LayoutRectangle.Top, txt.LayoutRectangle.Height(), txt.Padding.Top, txt.Padding.Bottom, txt.VerticalAlignment
+				);
+			}
+			double _GetRelativeLayoutTop(const StreamedRichText::StreamedRichTextFormatCache &cc, const StreamedRichText &txt) {
+				return _GetLayoutTop(
+					cc.Size.Y, 0.0, txt.LayoutRectangle.Height(), txt.Padding.Top, txt.Padding.Bottom, txt.VerticalAlignment
+				);
+			}
+
 			void StreamedRichText::DoCache(const StreamedRichText &txt, StreamedRichTextFormatCache &cache) { // idea: update lastBreak to make sure it's always valid
 				cache.LineBreaks.Clear();
 				cache.LineHeights.Clear();
 				cache.LineLengths.Clear();
+				cache.LineEndFormat.Clear();
+				cache.LineEndChangeIDs.Clear();
 				cache.Size = Vector2();
 
 				TextFormatInfo curInfo, lastBreakInfo;
@@ -497,24 +535,25 @@ namespace DE {
 				size_t markID = 0, breakMarkID = 0, lbid = 0;
 				for (size_t i = 0; i < txt.Content.Length(); ++i) {
 					TCHAR curc = txt.Content[i];
-					for (; markID < txt.Changes.Count() && txt.Changes[markID].Position == i; ++markID) {
-						const ChangeInfo &ci = txt.Changes[markID];
-						curInfo.ApplyChange(ci);
-						if (ci.Type == ChangeType::Font) {
-							if (curInfo.Font) {
-								if ((curh = curInfo.Font->GetHeight()) > maxh) {
-									maxh = curh;
-								}
-							} else {
-								curh = 0.0;
+					if (markID < txt.Changes.Count() && txt.Changes[markID].Position == i) {
+						do {
+							const ChangeInfo &ci = txt.Changes[markID];
+							curInfo.ApplyChange(ci);
+							++markID;
+						} while (markID < txt.Changes.Count() && txt.Changes[markID].Position == i);
+						if (curInfo.Font) {
+							curh = curInfo.Font->GetHeight() * curInfo.Scale;
+							if (curh > maxh) {
+								maxh = curh;
 							}
+						} else {
+							continue;
 						}
-					}
-					if (!curInfo.Font) { // skip this char if no font specified
+					} else if (!curInfo.Font) { // skip this char if no font specified
 						continue;
 					}
 					const CharData &cData = curInfo.Font->GetData(curc);
-					curw += cData.Advance;
+					curw += cData.Advance * curInfo.Scale;
 					bool breaknow = curw > txt.LayoutRectangle.Width() - txt.Padding.Width() && hasBreakable;
 					if (curc == _TEXT('\n') && !breaknow) {
 						breaknow = true;
@@ -528,6 +567,8 @@ namespace DE {
 						cache.LineBreaks.PushBack(lbid);
 						cache.LineHeights.PushBack(lbh);
 						cache.LineLengths.PushBack(lbw);
+						cache.LineEndFormat.PushBack(lastBreakInfo);
+						cache.LineEndChangeIDs.PushBack(breakMarkID);
 						cache.Size.Y += lbh;
 						if (lbw > cache.Size.X) {
 							cache.Size.X = lbw;
@@ -538,7 +579,7 @@ namespace DE {
 						markID = breakMarkID;
 						hasBreakable = hasBreakableChar = false;
 						curw = 0.0;
-						maxh = curh = (curInfo.Font ? curInfo.Font->GetHeight() : 0.0);
+						maxh = curh = (curInfo.Font ? curInfo.Font->GetHeight() * curInfo.Scale : 0.0);
 						continue;
 					}
 					// curc != '\n'
@@ -574,7 +615,351 @@ namespace DE {
 				}
 				cache.LineHeights.PushBack(maxh);
 				cache.LineLengths.PushBack(curw);
+				cache.LineEndFormat.PushBack(curInfo);
 			}
+			Vector2 StreamedRichText::DoGetSize(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt) {
+				return cache.Size + txt.Padding.Size();
+			}
+			void StreamedRichText::DoRender(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, Renderer &r) {
+				if (cache.LineLengths.Count() == 0) {
+					return;
+				}
+				List<Vertex> vxs;
+				size_t lastPage = 0, changeID = 0, curLine = 0;
+				Vector2 topLeft(_GetLineBegin(cache.LineLengths[curLine], txt), _GetLayoutTop(cache, txt));
+				TextFormatInfo ti;
+				for (size_t i = 0; i < txt.Content.Length(); ++i) {
+					while (changeID < txt.Changes.Count() && i == txt.Changes[changeID].Position) {
+						if (txt.Changes[changeID].Type == ChangeType::Font) {
+							if (ti.Font && vxs.Count() > 0) {
+								r.SetTexture(ti.Font->GetTexture(lastPage));
+								r.DrawVertices(vxs, RenderMode::Triangles);
+								vxs.Clear();
+							}
+						}
+						ti.ApplyChange(txt.Changes[changeID]);
+						++changeID;
+					}
+					if (ti.Font) {
+						const CharData &cd = ti.Font->GetData(txt.Content[i]);
+						const AtlasTexture &atex = ti.Font->GetTextureInfo(txt.Content[i]);
+						if (atex.Page != lastPage) {
+							if (vxs.Count() > 0) {
+								r.SetTexture(ti.Font->GetTexture(lastPage));
+								r.DrawVertices(vxs, RenderMode::Triangles);
+								vxs.Clear();
+							}
+							lastPage = atex.Page;
+						}
+						Math::Rectangle rect = cd.Placement;
+						rect.Scale(Vector2(), ti.Scale);
+						Vector2 diff = topLeft;
+						diff.Y += (cache.LineHeights[curLine] - ti.Font->GetHeight() * ti.Scale) * ti.LocalVerticalPosition;
+						rect.Translate(diff);
+						vxs.PushBack(Vertex(rect.TopLeft(), ti.Color, atex.UVRect.TopLeft()));
+						vxs.PushBack(Vertex(rect.TopRight(), ti.Color, atex.UVRect.TopRight()));
+						vxs.PushBack(Vertex(rect.BottomLeft(), ti.Color, atex.UVRect.BottomLeft()));
+						vxs.PushBack(Vertex(rect.TopRight(), ti.Color, atex.UVRect.TopRight()));
+						vxs.PushBack(Vertex(rect.BottomRight(), ti.Color, atex.UVRect.BottomRight()));
+						vxs.PushBack(Vertex(rect.BottomLeft(), ti.Color, atex.UVRect.BottomLeft()));
+						topLeft.X += cd.Advance * ti.Scale;
+						if (curLine < cache.LineBreaks.Count() && cache.LineBreaks[curLine] == i) {
+							topLeft.Y += cache.LineHeights[curLine];
+							topLeft.X = _GetLineBegin(cache.LineLengths[++curLine], txt);
+						}
+					}
+				}
+				if (vxs.Count() > 0) {
+					r.SetTexture(ti.Font->GetTexture(lastPage));
+					r.DrawVertices(vxs, RenderMode::Triangles);
+				}
+			}
+			List<Rectangle> StreamedRichText::DoGetSelectionRegion(
+				const StreamedRichTextFormatCache &cache,
+				const StreamedRichText &txt,
+				size_t beg, size_t end
+			) {
+				List<Math::Rectangle> result;
+				size_t line = DoGetLineOfCaret(cache, txt, beg), leb = 0, markID = 0;
+				TextFormatInfo format;
+				if (line > 0) {
+					format = cache.LineEndFormat[line - 1];
+					leb = cache.LineBreaks[line - 1] + 1;
+					markID = cache.LineEndChangeIDs[line - 1];
+				}
+				size_t lastend = beg, cur = leb;
+				double lastX = _GetLineBegin(cache.LineLengths[line], txt);
+				for (; cur < beg; ++cur) {
+					while (markID < txt.Changes.Count() && cur == txt.Changes[markID].Position) {
+						format.ApplyChange(txt.Changes[markID]);
+						++markID;
+					}
+					if (format.Font) {
+						lastX += format.Font->GetData(txt.Content[cur]).Advance * format.Scale;
+					}
+				}
+				double curX = lastX, lineTop = DoGetLineTop(cache, txt, line);
+				for (; cur < end; ++cur) {
+					bool
+						atEol = (cur > leb && line < cache.LineBreaks.Count() && cur == cache.LineBreaks[line] + 1),
+						hasNewChange = (markID < txt.Changes.Count() && cur == txt.Changes[markID].Position);
+					if (atEol || hasNewChange) {
+						if (format.Font && lastend < cur) {
+							double
+								fh = format.Font->GetHeight() * format.Scale,
+								t = (cache.LineHeights[line] - fh) * format.LocalVerticalPosition;
+							result.PushBack(Math::Rectangle(
+								Vector2(lastX, lineTop + t),
+								Vector2(curX, lineTop + t + fh)
+							));
+							lastX = curX;
+							lastend = cur;
+						}
+					}
+					if (atEol) {
+						lineTop += cache.LineHeights[line];
+						lastX = curX = _GetLineBegin(cache.LineLengths[++line], txt);
+					}
+					if (hasNewChange) {
+						do {
+							format.ApplyChange(txt.Changes[markID]);
+							++markID;
+						} while (markID < txt.Changes.Count() && cur == txt.Changes[markID].Position);
+					}
+					if (format.Font) {
+						curX += format.Font->GetData(txt.Content[cur]).Advance * format.Scale;
+					}
+				}
+				if (format.Font) {
+					double
+						fh = format.Font->GetHeight() * format.Scale,
+						t = (cache.LineHeights[line] - fh) * format.LocalVerticalPosition;
+					result.PushBack(Math::Rectangle(
+						Vector2(lastX, lineTop + t),
+						Vector2(curX, lineTop + t + fh)
+					));
+				}
+				return result;
+			}
+			void StreamedRichText::DoHitTest(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, const Core::Math::Vector2 &pos, size_t &over, size_t &caret) {
+				Vector2 relPos = pos;
+				relPos.Y -= _GetLayoutTop(cache, txt);
+				if (relPos.Y < 0.0) {
+					over = caret = 0;
+					return;
+				}
+				size_t line = 0;
+				cache.LineHeights.ForEach([&](double h) {
+					if ((relPos.Y -= h) < 0.0) {
+						return false;
+					}
+					++line;
+					return true;
+				});
+				if (line >= cache.LineLengths.Count()) {
+					over = caret = txt.Content.Length();
+					return;
+				}
+				TextFormatInfo info;
+				size_t beg = 0, mark = 0, end = (line == cache.LineBreaks.Count() ? txt.Content.Length() : cache.LineBreaks[line] + 1);
+				if (line > 0) {
+					beg = cache.LineBreaks[line - 1] + 1;
+					info = cache.LineEndFormat[line - 1];
+					mark = cache.LineEndChangeIDs[line - 1];
+				}
+				if (beg == end) {
+					over = (caret = txt.Content.Length()) - 1;
+					return;
+				}
+				if ((relPos.X -= _GetLineBegin(cache.LineLengths[line], txt)) < 0.0) {
+					over = caret = beg;
+					return;
+				}
+				for (size_t i = beg; i < end; ++i) {
+					while (mark < txt.Changes.Count() && txt.Changes[mark].Position == i) {
+						info.ApplyChange(txt.Changes[mark]);
+						++mark;
+					}
+					if (info.Font) {
+						double adv = info.Font->GetData(txt.Content[i]).Advance * info.Scale;
+						if ((relPos.X -= adv) < 0.0) {
+							over = i;
+							caret = (txt.Content[i] != _TEXT('\n') && relPos.X > -0.5 * adv ? i + 1 : i);
+							return;
+						}
+					}
+				}
+				if (txt.Content[end - 1] == _TEXT('\n')) {
+					over = caret = end - 1;
+				} else {
+					over = (caret = end) - 1;
+				}
+			}
+			Math::Rectangle StreamedRichText::DoGetCaretInfoImpl(
+				const StreamedRichTextFormatCache &cache,
+				const StreamedRichText &txt,
+				size_t caret,
+				size_t line
+			) {
+				size_t beg = 0, changeID = 0, pastend = (line < cache.LineBreaks.Count() ? cache.LineBreaks[line] + 1 : txt.Content.Length());
+				TextFormatInfo ti;
+				if (line > 0) {
+					beg = cache.LineBreaks[line - 1] + 1;
+					changeID = cache.LineEndChangeIDs[line - 1];
+					ti = cache.LineEndFormat[line - 1];
+				}
+				Vector2 pos(_GetLineBegin(cache.LineLengths[line], txt), _GetLayoutTop(cache, txt));
+				for (size_t i = 0; i < line; ++i) {
+					pos.Y += cache.LineHeights[i];
+				}
+				for (size_t cur = beg; cur < caret; ++cur) {
+					while (changeID < txt.Changes.Count() && txt.Changes[changeID].Position == cur) {
+						ti.ApplyChange(txt.Changes[changeID]);
+						++changeID;
+					}
+					if (ti.Font) {
+						pos.X += ti.Font->GetData(txt.Content[cur]).Advance * ti.Scale;
+					}
+				}
+				TCHAR gc = _TEXT('\n');
+				if (caret < pastend) {
+					while (changeID < txt.Changes.Count() && txt.Changes[changeID].Position == caret) {
+						ti.ApplyChange(txt.Changes[changeID]);
+						++changeID;
+					}
+					gc = txt.Content[caret];
+				}
+				Vector2 sz;
+				if (ti.Font) {
+					sz.X = ti.Font->GetData(gc).Advance * ti.Scale;
+					sz.Y = ti.Font->GetHeight() * ti.Scale;
+					pos.Y += (cache.LineHeights[line] - sz.Y) * ti.LocalVerticalPosition;
+				}
+				return Math::Rectangle(pos.X, pos.Y, sz.X, sz.Y);
+			}
+			size_t StreamedRichText::DoGetLineOfCaret(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t caret, double baseline) {
+				size_t line = 0;
+				bool end = false;
+				cache.LineBreaks.ForEach([&](size_t bpos) {
+					if (bpos < caret) {
+						++line;
+						if (bpos + 1 == caret) {
+							end = true;
+							return false;
+						}
+						return true;
+					}
+					return false;
+				});
+				if (end && txt.Content[caret - 1] != _TEXT('\n')) { // very suspicious
+					double midpvt = cache.LineLengths[line - 1];
+					midpvt = _GetLineBegin(midpvt, txt) + 0.5 * midpvt;
+					if (baseline > midpvt) {
+						--line;
+					}
+				}
+				return line;
+			}
+			size_t StreamedRichText::DoGetLineOfCaret(const StreamedRichTextFormatCache &cache, const StreamedRichText&, size_t caret) {
+				size_t line = 0;
+				cache.LineBreaks.ForEach([&](size_t bpos) {
+					if (bpos < caret) {
+						++line;
+						return true;
+					}
+					return false;
+				});
+				return line;
+			}
+			size_t StreamedRichText::DoGetLineNumber(const StreamedRichTextFormatCache &cache, const StreamedRichText&) {
+				return cache.LineLengths.Count();
+			}
+			void StreamedRichText::DoGetLineBeginning(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t line, size_t &caret, double &baseline) {
+				caret = (line > 0 ? cache.LineBreaks[line - 1] + 1 : 0);
+				baseline = _GetLineBegin(cache.LineLengths[line], txt);
+			}
+			void StreamedRichText::DoGetLineCursorEnding(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t line, size_t &caret, double &baseline) {
+				caret = (line >= cache.LineBreaks.Count() ? txt.Content.Length() : cache.LineBreaks[line] + 1);
+				baseline = _GetLineEnd(cache.LineLengths[line], txt);
+				if (caret > 0 && txt.Content[caret - 1] == _TEXT('\n')) { // return at end of line
+					--caret;
+					const TextFormatInfo &endFormat = cache.LineEndFormat[line];
+					baseline -= endFormat.Font->GetData(_TEXT('\n')).Advance * endFormat.Scale;
+				}
+			}
+			void StreamedRichText::DoGetLineEnding(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t line, size_t &caret, double &baseline) {
+				caret = (line >= cache.LineBreaks.Count() ? txt.Content.Length() : cache.LineBreaks[line] + 1);
+				baseline = _GetLineEnd(cache.LineLengths[line], txt);
+			}
+			double StreamedRichText::DoGetLineTop(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t line) {
+				double top = _GetLayoutTop(cache, txt);
+				for (size_t i = 0; i < line; ++i) {
+					top += cache.LineHeights[i];
+				}
+				return top;
+			}
+			double StreamedRichText::DoGetLineHeight(const StreamedRichTextFormatCache &cache, const StreamedRichText&, size_t line) {
+				return cache.LineHeights[line];
+			}
+
+#define STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, ...)    \
+	if (FormatCached) {                                         \
+		FUNC(CachedFormat, __VA_ARGS__);                        \
+	} else {                                                    \
+		StreamedRichTextFormatCache cache;                      \
+		DoCache(*this, cache);                                  \
+		FUNC(cache, __VA_ARGS__);                               \
+	}                                                           \
+
+#define STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_NOARGS(FUNC) STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, *this)
+#define STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(FUNC, ...) STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_BASE(FUNC, *this, __VA_ARGS__)
+			Vector2 StreamedRichText::GetSize() const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_NOARGS(return DoGetSize);
+			}
+			Core::Collections::List<Core::Math::Rectangle> StreamedRichText::GetSelectionRegion(size_t s, size_t e) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetSelectionRegion, s, e);
+			}
+			void StreamedRichText::HitTest(const Core::Math::Vector2 &pt, size_t &over, size_t &caret) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoHitTest, pt, over, caret);
+			}
+			Math::Rectangle StreamedRichText::GetCaretInfo(size_t caret) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretInfo, caret);
+				return Math::Rectangle();
+			}
+			Math::Rectangle StreamedRichText::GetCaretInfo(size_t caret, double baseline) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetCaretInfo, caret, baseline);
+				return Math::Rectangle();
+			}
+			size_t StreamedRichText::GetLineOfCaret(size_t caret) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineOfCaret, caret);
+			}
+			size_t StreamedRichText::GetLineOfCaret(size_t caret, double baseline) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineOfCaret, caret, baseline);
+			}
+			size_t StreamedRichText::GetLineNumber() const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_NOARGS(return DoGetLineNumber);
+			}
+			void StreamedRichText::GetLineBeginning(size_t line, size_t &caret, double &baseline) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetLineBeginning, line, caret, baseline);
+			}
+			void StreamedRichText::GetLineCursorEnding(size_t line, size_t &caret, double &baseline) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetLineCursorEnding, line, caret, baseline);
+			}
+			void StreamedRichText::GetLineEnding(size_t line, size_t &caret, double &baseline) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoGetLineEnding, line, caret, baseline);
+			}
+			double StreamedRichText::GetLineTop(size_t line) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineTop, line);
+			}
+			double StreamedRichText::GetLineHeight(size_t line) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(return DoGetLineHeight, line);
+			}
+			void StreamedRichText::Render(Renderer &r) const {
+				STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL(DoRender, r);
+			}
+#undef STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_BASE
+#undef STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL_NOARGS
+#undef STREAMEDRICHTEXT_NEEDCACHE_FUNC_IMPL
 		}
 	}
 }

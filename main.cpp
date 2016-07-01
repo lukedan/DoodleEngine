@@ -701,11 +701,20 @@ class ControlTest : public Test {
 			tstat.FitContent();
 			p.Children().Insert(tstat);
 
-			tBox.Text().Font = &fnt;
-			tBox.Text().TextColor = Color(0, 0, 0, 255);
+			tBox.Text()<<
+				&fnt<<Color(0, 0, 0, 255)<<_TEXT("123")<<
+				TextFormatStreaming::NewLocalVerticalPosition(1.0)<<_TEXT("45")<<
+				Color(255, 0, 0, 255)<<TextFormatStreaming::NewScale(1.5)<<_TEXT("67890")<<
+				&consFnt<<Color(0, 0, 0, 255)<<TextFormatStreaming::NewScale(1.0)<<_TEXT("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")<<
+				&fnt;
+//			tBox.Text().TextColor = Color(0, 0, 0, 255);
+//			tBox.Text().Font = &fnt;
+//			tBox.Text().TextColor = Color(0, 0, 0, 255);
+
 			// tests below have passed
 //			tBox.Text().Scale = 1.5;
 //			tBox.Text().HorizontalAlignment = HorizontalTextAlignment::Center; // only locally centered
+
 			tBox.SetAnchor(Anchor::TopDock);
 			tBox.SetSize(Size(0.0, fnt.GetHeight() * 10));
 			tBox.SetMargins(Thickness(10.0));
@@ -929,7 +938,7 @@ class ControlTest : public Test {
 			tBox.SetText(str);
 		}
 		void InsertComboBoxItem(const Core::String &text) {
-			SimpleComboBox::Item *item = &comBox.InsertItem();
+			typename SimpleComboBox<BasicText>::Item *item = &comBox.InsertItem();
 			item->Content().Font = &fnt;
 			item->Content().Content = text;
 			item->Content().TextColor = Color(0, 0, 0, 255);
@@ -938,20 +947,6 @@ class ControlTest : public Test {
 
 		virtual void Update(double dt) {
 			counter.Update(dt);
-
-//			wstringstream ss;
-//			ss <<
-//				"FPS:"<<counter.GetFPS() <<
-//				"\nAverage FPS:"<<counter.GetAverageFPS() <<
-//				"\nMemory Usage:"<<GlobalAllocator::UsedSize() <<
-//				"\nMemory Allocated:"<<GlobalAllocator::AllocatedSize() <<
-//				"\nthe quick brown fox jumps over the lazy dog" <<
-//				"\nTHE QUICK BROWN FOX JUMPS OVER THE LAZY DOG" <<
-//				"\n1234567890";
-//			lbl.Content().Content = ss.str().c_str();
-//			lbl.FitContent();
-//			p.FitContent();
-
 			w.Update(dt);
 		}
 		virtual void Render() {
@@ -970,14 +965,15 @@ class ControlTest : public Test {
 		UI::World w;
 		Panel base, popup;
 		WrapPanel p;
-		SimpleButton b, bDump, bLoad;
-		Label lbl;
+		SimpleButton<BasicText> b, bDump, bLoad;
+		Label<BasicText> lbl;
 		SliderBase sBar;
 		SimpleProgressBar pBar;
-		SimpleCheckBox ckBox, tstat, rdOnly;
+		SimpleCheckBox<BasicText> ckBox, tstat, rdOnly;
 		SimpleScrollView view;
-		SimpleComboBox comBox;
-		TextBox tBox;
+		SimpleComboBox<BasicText> comBox;
+//		TextBox<BasicText> tBox;
+		TextBox<StreamedRichText> tBox;
 		PerformanceGraph pGraph;
 		SimpleConsoleRunner runner;
 		Console console;

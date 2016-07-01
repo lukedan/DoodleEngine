@@ -38,9 +38,16 @@ namespace DE {
 
 					virtual Core::Math::Vector2 GetCaretPosition(size_t) const = 0;
 					virtual Core::Math::Vector2 GetCaretPosition(size_t, double) const = 0; // with baseline information
-					virtual double GetCaretHeight(size_t) const = 0;
-					virtual void GetCaretInfo(size_t, Core::Math::Vector2&, double&) const = 0;
-					virtual void GetCaretInfo(size_t, double, Core::Math::Vector2&, double&) const = 0;
+					virtual Core::Math::Vector2 GetCaretSize(size_t) const = 0;
+					virtual Core::Math::Vector2 GetCaretSize(size_t, double) const = 0;
+					virtual Core::Math::Rectangle GetCaretInfo(size_t caret) const {
+						Core::Math::Vector2 pos = GetCaretPosition(caret), sz = GetCaretSize(caret);
+						return Core::Math::Rectangle(pos.X, pos.Y, sz.X, sz.Y);
+					}
+					virtual Core::Math::Rectangle GetCaretInfo(size_t caret, double baseline) const {
+						Core::Math::Vector2 pos = GetCaretPosition(caret, baseline), sz = GetCaretSize(caret, baseline);
+						return Core::Math::Rectangle(pos.X, pos.Y, sz.X, sz.Y);
+					}
 
 					virtual size_t GetLineOfCaret(size_t) const = 0;
 					virtual size_t GetLineOfCaret(size_t, double) const = 0;
@@ -77,25 +84,21 @@ namespace DE {
 					HorizontalTextAlignment HorizontalAlignment = HorizontalTextAlignment::Left;
 					VerticalTextAlignment VerticalAlignment = VerticalTextAlignment::Top;
 					bool RoundToInteger = true, UseClip = false;
-					Core::Math::Rectangle Clip, Padding {-2.0, -2.0, 4.0, 4.0};
+					Core::Math::Rectangle Clip, Padding {-4.0, -4.0, 8.0, 8.0};
 					Core::Color TextColor;
 
 					void CacheFormat();
 
 					Core::Math::Vector2 GetSize() const override {
 						if (FormatCached) {
-							return FormatCache.Size + Core::Math::Vector2(Padding.Width(), Padding.Height());
+							return FormatCache.Size + Padding.Size();
 						} else {
 							BasicTextFormatCache t;
 							DoCache(*this, t);
-							return t.Size + Core::Math::Vector2(Padding.Width(), Padding.Height());
+							return t.Size + Padding.Size();
 						}
 					}
 
-					friend Renderer &operator <<(Renderer &r, const BasicText &txt) {
-						txt.Render(r);
-						return r;
-					}
 					void Render(Renderer&) const override;
 
 					Core::Collections::List<Core::Math::Rectangle> GetSelectionRegion(size_t, size_t) const override;
@@ -106,30 +109,12 @@ namespace DE {
 						HitTest(pos, over, caret);
 						return caret;
 					}
-					size_t HitTestForChar(const Core::Math::Vector2 &pos) const {
+					size_t HitTestForChar(const Core::Math::Vector2 &pos) const override {
 						size_t over, caret;
 						HitTest(pos, over, caret);
 						return over;
 					}
 
-					void GetCaretInfo(size_t caret, Core::Math::Vector2 &pos, double &height) const override {
-						if (Font) {
-							pos = GetCaretPosition(caret);
-							height = Font->GetHeight() * Scale;
-						} else {
-							pos = LayoutRectangle.TopLeft();
-							height = 0.0;
-						}
-					}
-					void GetCaretInfo(size_t caret, double baseline, Core::Math::Vector2 &pos, double &height) const override {
-						if (Font) {
-							pos = GetCaretPosition(caret, baseline);
-							height = Font->GetHeight() * Scale;
-						} else {
-							pos = LayoutRectangle.TopLeft();
-							height = 0.0;
-						}
-					}
 					size_t GetLineOfCaret(size_t) const override;
 					size_t GetLineOfCaret(size_t, double) const override;
 					size_t GetLineNumber() const override;
@@ -141,12 +126,14 @@ namespace DE {
 					Core::Math::Vector2 GetCaretPosition(size_t caret, double baseline) const override {
 						return GetRelativeCaretPosition(caret, baseline) + LayoutRectangle.TopLeft();
 					}
-					double GetCaretHeight(size_t) const override {
+					Core::Math::Vector2 GetCaretSize(size_t caret) const override {
 						if (Font) {
-							return Font->GetHeight() * Scale;
+							return Core::Math::Vector2(Font->GetData(caret < Content.Length() ? Content[caret] : _TEXT('\n')).Advance, Font->GetHeight()) * Scale;
 						}
-						return 0.0;
+						return Core::Math::Vector2();
 					}
+					Core::Math::Vector2 GetCaretSize(size_t, double) const override;
+					Core::Math::Rectangle GetCaretInfo(size_t, double) const override;
 
 					void GetLineBeginning(size_t, size_t&, double&) const override;
 					void GetLineCursorEnding(size_t, size_t&, double&) const override;
@@ -161,7 +148,30 @@ namespace DE {
 					static void DoRender(const BasicTextFormatCache&, const BasicText&, Renderer&);
 					static Core::Collections::List<Core::Math::Rectangle> DoGetSelectionRegion(const BasicTextFormatCache&, const BasicText&, size_t, size_t);
 					static void DoHitTest(const BasicTextFormatCache&, const BasicText&, const Core::Math::Vector2&, size_t&, size_t&);
-					static Core::Math::Vector2 DoGetRelativeCaretPosition(const BasicTextFormatCache&, const BasicText&, size_t, bool, double);
+					static Core::Math::Vector2 DoGetRelativeCaretPosition(
+						const BasicTextFormatCache &cache,
+						const BasicText &text,
+						size_t caret,
+						bool useBaseline,
+						double baselinePos
+					) {
+						return DoGetRelativeCaretPositionImpl(
+							cache, text, caret,
+							(useBaseline ? DoGetLineOfCaret(cache, text, caret, baselinePos) : DoGetLineOfCaret(cache, text, caret))
+						);
+					}
+					static Core::Math::Vector2 DoGetRelativeCaretPositionImpl(const BasicTextFormatCache&, const BasicText&, size_t, size_t);
+					static Core::Math::Vector2 DoGetCaretSize(const BasicTextFormatCache &cache, const BasicText &txt, size_t caret, double baseline) {
+						return DoGetCaretSizeImpl(cache, txt, caret, DoGetLineOfCaret(cache, txt, caret, baseline));
+					}
+					static Core::Math::Vector2 DoGetCaretSizeImpl(const BasicTextFormatCache&, const BasicText&, size_t, size_t);
+					static Core::Math::Rectangle DoGetCaretInfoWithBaseline(const BasicTextFormatCache &cache, const BasicText &txt, size_t caret, double baseline) {
+						size_t line = DoGetLineOfCaret(cache, txt, caret, baseline);
+						Core::Math::Vector2
+							pos = DoGetRelativeCaretPositionImpl(cache, txt, caret, line) + txt.LayoutRectangle.TopLeft(),
+							sz = DoGetCaretSizeImpl(cache, txt, caret, line);
+						return Core::Math::Rectangle(pos.X, pos.Y, sz.X, sz.Y);
+					}
 					static size_t DoGetLineOfCaret(const BasicTextFormatCache&, const BasicText&, size_t, double);
 					static size_t DoGetLineOfCaret(const BasicTextFormatCache&, const BasicText&, size_t);
 					static size_t DoGetLineNumber(const BasicTextFormatCache&, const BasicText&);
@@ -236,14 +246,19 @@ namespace DE {
 
 					struct StreamedRichTextFormatCache {
 						Core::Collections::List<double> LineLengths, LineHeights;
-						Core::Collections::List<size_t> LineBreaks;
+						Core::Collections::List<size_t> LineBreaks, LineEndChangeIDs;
+						Core::Collections::List<TextFormatInfo> LineEndFormat;
 						Core::Math::Vector2 Size;
 					};
 
 					Core::String Content;
-					Core::Math::Rectangle LayoutRectangle, Padding {-2.0, -2.0, 4.0, 4.0};
+					Core::Math::Rectangle LayoutRectangle, Padding {-4.0, -4.0, 8.0, 8.0};
 					Core::Collections::List<ChangeInfo> Changes;
-					LineWrapType WrapType;
+					LineWrapType WrapType = LineWrapType::NoWrap;
+					HorizontalTextAlignment HorizontalAlignment = HorizontalTextAlignment::Left;
+					VerticalTextAlignment VerticalAlignment = VerticalTextAlignment::Top;
+					bool FormatCached = false;
+					StreamedRichTextFormatCache CachedFormat;
 
 					StreamedRichText &AppendScaleChange(double scale) {
 						ChangeInfo ci(Content.Length(), ChangeType::Scale);
@@ -280,20 +295,47 @@ namespace DE {
 						Content += text;
 						return *this;
 					}
+					StreamedRichText &operator <<(const Font *fnt) {
+						return AppendFontChange(fnt);
+					}
+					StreamedRichText &operator <<(const Core::Color &c) {
+						return AppendColorChange(c);
+					}
 
+					virtual void CacheFormat() {
+						DoCache(*this, CachedFormat);
+						FormatCached = true;
+					}
 					Core::Math::Vector2 GetSize() const override;
 
 					Core::Collections::List<Core::Math::Rectangle> GetSelectionRegion(size_t, size_t) const override;
 
-					size_t HitTestForCaret(const Core::Math::Vector2&) const override;
-					size_t HitTestForChar(const Core::Math::Vector2&) const override;
 					void HitTest(const Core::Math::Vector2&, size_t&, size_t&) const override;
+					size_t HitTestForCaret(const Core::Math::Vector2 &pos) const override {
+						size_t over, caret;
+						HitTest(pos, over, caret);
+						return caret;
+					}
+					size_t HitTestForChar(const Core::Math::Vector2 &pos) const override {
+						size_t over, caret;
+						HitTest(pos, over, caret);
+						return over;
+					}
 
-					Core::Math::Vector2 GetCaretPosition(size_t) const override;
-					Core::Math::Vector2 GetCaretPosition(size_t, double) const override; // with baseline information
-					double GetCaretHeight(size_t) const override;
-					void GetCaretInfo(size_t, Core::Math::Vector2&, double&) const override;
-					void GetCaretInfo(size_t, double, Core::Math::Vector2&, double&) const override;
+					Core::Math::Vector2 GetCaretPosition(size_t caret) const override {
+						return GetCaretInfo(caret).TopLeft();
+					}
+					Core::Math::Vector2 GetCaretPosition(size_t caret, double baseline) const override { // with baseline information
+						return GetCaretInfo(caret, baseline).TopLeft();
+					}
+					Core::Math::Vector2 GetCaretSize(size_t caret) const override {
+						return GetCaretInfo(caret).Size();
+					}
+					Core::Math::Vector2 GetCaretSize(size_t caret, double baseline) const override {
+						return GetCaretInfo(caret, baseline).Size();
+					}
+					Core::Math::Rectangle GetCaretInfo(size_t) const override;
+					Core::Math::Rectangle GetCaretInfo(size_t, double) const override;
 
 					size_t GetLineOfCaret(size_t) const override;
 					size_t GetLineOfCaret(size_t, double) const override;
@@ -304,18 +346,31 @@ namespace DE {
 					void GetLineEnding(size_t, size_t&, double&) const override;
 					double GetLineTop(size_t) const override;
 					double GetLineHeight(size_t) const override;
-					double GetLineBottom(size_t line) const {
-						return GetLineTop(line) + GetLineHeight(line);
-					}
 
-					virtual void Render(Renderer&) const = 0;
+					void Render(Renderer&) const override;
 				protected:
 					static void DoCache(const StreamedRichText&, StreamedRichTextFormatCache&);
 					static Core::Math::Vector2 DoGetSize(const StreamedRichTextFormatCache&, const StreamedRichText&);
-					static void DoRender(const StreamedRichTextFormatCache&, const StreamedRichText&, Renderer&, bool);
-					static Core::Collections::List<Core::Math::Rectangle> DoGetSeletionRegion(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, size_t);
+					static void DoRender(const StreamedRichTextFormatCache&, const StreamedRichText&, Renderer&);
+					static Core::Collections::List<Core::Math::Rectangle> DoGetSelectionRegion(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, size_t);
+					static void DoHitTest(const StreamedRichTextFormatCache&, const StreamedRichText&, const Core::Math::Vector2&, size_t&, size_t&);
+					static Core::Math::Rectangle DoGetCaretInfo(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t caret) {
+						return DoGetCaretInfoImpl(cache, txt, caret, DoGetLineOfCaret(cache, txt, caret));
+					}
+					static Core::Math::Rectangle DoGetCaretInfo(const StreamedRichTextFormatCache &cache, const StreamedRichText &txt, size_t caret, double baseline) {
+						return DoGetCaretInfoImpl(cache, txt, caret, DoGetLineOfCaret(cache, txt, caret, baseline));
+					}
+					static Core::Math::Rectangle DoGetCaretInfoImpl(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, size_t);
+					static size_t DoGetLineOfCaret(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, double);
+					static size_t DoGetLineOfCaret(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t);
+					static size_t DoGetLineNumber(const StreamedRichTextFormatCache&, const StreamedRichText&);
+					static void DoGetLineBeginning(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, size_t&, double&);
+					static void DoGetLineCursorEnding(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, size_t&, double&);
+					static void DoGetLineEnding(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t, size_t&, double&);
+					static double DoGetLineTop(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t);
+					static double DoGetLineHeight(const StreamedRichTextFormatCache&, const StreamedRichText&, size_t);
 			};
-			namespace Streaming {
+			namespace TextFormatStreaming {
 				struct NewScale {
 					explicit NewScale(double d) : Scale(d) {
 					}

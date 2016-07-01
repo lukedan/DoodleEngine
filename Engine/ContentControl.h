@@ -5,15 +5,19 @@
 
 namespace DE {
 	namespace UI {
-		class ContentControl : public Control {
+		template <typename T/* = Graphics::TextRendering::BasicText*/> class ContentControl : public Control {
 			public:
 				virtual ~ContentControl() {
+					StaticAssert(
+						Core::IsBaseOf<T, Graphics::TextRendering::Text>::Result,
+						"invalid content type"
+					);
 				}
 
-				Graphics::TextRendering::BasicText &Content() {
+				T &Content() {
 					return _content;
 				}
-				const Graphics::TextRendering::BasicText &Content() const {
+				const T &Content() const {
 					return _content;
 				}
 
@@ -33,7 +37,7 @@ namespace DE {
 					_content.LayoutRectangle = _actualLayout;
 				}
 
-				Graphics::TextRendering::BasicText _content;
+				T _content;
 		};
 	}
 }

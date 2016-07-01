@@ -6,7 +6,8 @@
 
 namespace DE {
 	namespace UI {
-		class TextBox : public ScrollViewBase {
+		// testing
+		template <typename T/* = Graphics::TextRendering::BasicText*/> class TextBox : public ScrollViewBase {
 			protected:
 				enum class CaretMoveType {
 					None = 0,
@@ -29,10 +30,10 @@ namespace DE {
 					_disposing = true;
 				}
 
-				Graphics::TextRendering::BasicText &Text() {
+				T &Text() {
 					return _lbl.Content();
 				}
-				const Graphics::TextRendering::BasicText &Text() const {
+				const T &Text() const {
 					return _lbl.Content();
 				}
 				void SetText(const Core::String &text) {
@@ -58,15 +59,14 @@ namespace DE {
 				}
 
 				virtual void MakeCaretInView() {
-					Core::Math::Vector2 caret;
-					double h;
-					_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, caret, h);
-					caret -= _lbl.Content().LayoutRectangle.TopLeft();
-					MakePointInView(caret + Core::Math::Vector2(0.0, h));
-					MakePointInView(caret);
-					if (!_insert) {
-						MakePointInView(caret + Core::Math::Vector2(GetOverwriteModeCaretWidth(), 0.0));
+					Core::Math::Rectangle caret = _lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+					caret.Translate(-_lbl.GetActualLayout().TopLeft());
+					if (_insert) {
+						MakePointInView(caret.BottomLeft());
+					} else {
+						MakePointInView(caret.BottomRight());
 					}
+					MakePointInView(caret.TopLeft());
 					_blink = 0.0;
 				}
 				virtual void MoveCaret(size_t newPosition) {
@@ -97,7 +97,7 @@ namespace DE {
 					return &DefaultTextBoxBorder;
 				}
 
-				virtual void SetDesiredVisibleLine(size_t lines) {
+				void SetDesiredVisibleLine(size_t lines) {
 					SetSize(Size(GetSize().Width, _lbl.Content().Padding.Height() + lines * _lbl.Content().Font->GetHeight()));
 				}
 
@@ -149,7 +149,7 @@ namespace DE {
 					}
 				};
 			protected:
-				class LabelWrapper : public Label {
+				class LabelWrapper : public Label<T> {
 					friend class TextBox;
 				};
 
@@ -185,7 +185,7 @@ namespace DE {
 					MakeCaretInView();
 				}
 				virtual void SetCaretPositionInfo(size_t newPosition, CaretMoveType type) {
-					SetCaretPositionInfo(newPosition, type, _lbl.Content().GetRelativeCaretPosition(newPosition).X);
+					SetCaretPositionInfo(newPosition, type, _lbl.Content().GetCaretPosition(newPosition).X - _lbl.Content().LayoutRectangle.Left);
 				}
 
 				virtual void Update(double dt) override {
@@ -210,17 +210,19 @@ namespace DE {
 					ScrollViewBase::RenderChild(r, c);
 					if (Focused() && _blink < _period * 0.5) {
 						Core::Collections::List<Core::Math::Vector2> caret;
-						Core::Math::Vector2 pos;
-						double dy;
-						_lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left, pos, dy);
-						pos.Y += dy;
-						caret.PushBack(pos);
+						Core::Math::Rectangle crect = _lbl.Content().GetCaretInfo(_caret, _cbase + _lbl.Content().LayoutRectangle.Left);
+						caret.PushBack(crect.BottomLeft());
 						if (_insert) {
-							pos.Y -= dy;
+							caret.PushBack(crect.TopLeft());
 						} else {
-							pos.X += GetOverwriteModeCaretWidth();
+							caret.PushBack(crect.BottomRight());
+							caret.PushBack(crect.BottomRight());
+							caret.PushBack(crect.TopRight());
+							caret.PushBack(crect.TopRight());
+							caret.PushBack(crect.TopLeft());
+							caret.PushBack(crect.TopLeft());
+							caret.PushBack(crect.BottomLeft());
 						}
-						caret.PushBack(pos);
 						if (_caretPen) {
 							_caretPen->DrawLines(caret, r);
 						} else {
@@ -236,15 +238,6 @@ namespace DE {
 						brush->FillRect(rect, r);
 						return true;
 					});
-				}
-				double GetOverwriteModeCaretWidth() const {
-					double rawResult;
-					if (_caret >= _lbl.Content().Content.Length()) {
-						rawResult = _lbl.Content().Font->GetData(_TEXT('\n')).Advance;
-					} else {
-						rawResult = _lbl.Content().Font->GetData(_lbl.Content().Content[_caret]).Advance;
-					}
-					return rawResult * _lbl.Content().Scale;
 				}
 
 				void ResetChildrenLayout() override {
@@ -438,18 +431,14 @@ namespace DE {
 									break; // terminate in advance
 								}
 							}
-							if (_lbl.Content().Font && _lbl.Content().Font->HasData(realChar)) {
-								if (_insert) {
-									_lbl.Content().Content.Insert(_caret, realChar);
-								} else {
-									if (_caret < _lbl.Content().Content.Length() && _lbl.Content().Content[_caret] != _TEXT('\n')) {
-										_lbl.Content().Content[_caret] = realChar;
-									} else {
-										_lbl.Content().Content.Insert(_caret, realChar);
-									}
-								}
+							if (_insert) {
+								_lbl.Content().Content.Insert(_caret, realChar);
 							} else {
-								changed = false;
+								if (_caret < _lbl.Content().Content.Length() && _lbl.Content().Content[_caret] != _TEXT('\n')) {
+									_lbl.Content().Content[_caret] = realChar;
+								} else {
+									_lbl.Content().Content.Insert(_caret, realChar);
+								}
 							}
 							break;
 						}
@@ -464,5 +453,9 @@ namespace DE {
 					TextChanged(info);
 				}
 		};
+		template <typename T> const Graphics::Pen TextBox<T>::DefaultCaretPen(Core::Color(0, 0, 0, 255), 1.0);
+		template <typename T> const Graphics::SolidBrush TextBox<T>::DefaultSelectionBrush(Core::Color(100, 150, 200, 100));
+		template <typename T> const Graphics::SolidBrush TextBox<T>::DefaultTextBoxBackground(Core::Color(255, 255, 255, 255));
+		template <typename T> const Graphics::Pen TextBox<T>::DefaultTextBoxBorder(Core::Color(0, 0, 0, 255), 1.0);
 	}
 }
