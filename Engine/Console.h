@@ -5,7 +5,7 @@
 
 namespace DE {
 	namespace UI {
-		class SimpleConsoleTextBox : public PanelBase { // TODO make it ra1nbow
+		class SimpleConsoleTextBox : public PanelBase {
 			public:
 				constexpr static size_t DefaultBufferHeight = 800, DefaultBufferWidth = 80;
 				constexpr static double DefaultCaretPhase = 0.5;
@@ -120,6 +120,7 @@ namespace DE {
 					_caretTime = 0.0;
 					_buf.Clear();
 					_buf.PushBack(ConsoleLine(), _bufSize);
+					_cFVisLine = 0;
 					_sideBar.SetValue(0.0);
 				}
 
@@ -131,9 +132,7 @@ namespace DE {
 					} else {
 						return;
 					}
-					_myScroll = true;
 					_sideBar.SetValue(static_cast<double>(_cFVisLine));
-					_myScroll = false;
 				}
 
 				virtual void AutoSetWidth() {
@@ -169,7 +168,6 @@ namespace DE {
 				ScrollBarBase _sideBar;
 				const Graphics::TextRendering::Font *_fnt = nullptr;
 				const Graphics::Brush *_caretBrush = nullptr;
-				bool _myScroll = false;
 				Core::Color _cursorColor;
 
 				size_t GetLineID(size_t line) const {
@@ -201,9 +199,7 @@ namespace DE {
 					_sideBar.SetSize(Size(ScrollBarBase::DefaultWidth, 0.0));
 					_sideBar.SetMargins(Thickness(0.0));
 					_sideBar.Scroll += [&](const ScrollInfo&) {
-						if (!_myScroll) {
-							ResetLinesLayout(false);
-						}
+						ResetLinesLayout(false);
 					};
 					_col.Insert(_sideBar);
 				}
@@ -236,9 +232,7 @@ namespace DE {
 						if (v + static_cast<double>(_cVisLineNum) > static_cast<double>(_bufSize)) {
 							v = Core::Math::Max(0.0, static_cast<double>(_bufSize) - static_cast<double>(_cVisLineNum));
 						}
-						_myScroll = true;
 						_sideBar.SetScrollBarProperties(_bufSize, _cVisLineNum, v);
-						_myScroll = false;
 						_sideBar.PageDelta() = _cVisLineNum;
 						_sideBar.StepDistanceRatio() = 1.0 / static_cast<double>(_cVisLineNum);
 					}

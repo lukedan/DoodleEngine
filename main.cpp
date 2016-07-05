@@ -830,9 +830,9 @@ class ControlTest : public Test {
 			runner.Commands().InsertLeft(Command(_TEXT("sysinfo"), [&](const List<String> &args) {
 				return new (GlobalAllocator::Allocate(sizeof(SimpleRunningCommand))) SimpleRunningCommand(args, [&](const List<String>&) {
 					runner.Write(
-						_TEXT("FPS:\t\t\t\t") + ToString(counter.GetFPS()) + _TEXT("\n")
-						_TEXT("Average FPS:\t\t") + ToString(counter.GetAverageFPS()) + _TEXT("\n")
-						_TEXT("Memory Usage:\t\t") + ToString(GlobalAllocator::UsedSize()) + _TEXT("\n")
+						_TEXT("FPS:\t\t\t\t") + ToString(counter.GetFPS()) + _TEXT("\n") +
+						_TEXT("Average FPS:\t\t") + ToString(counter.GetAverageFPS()) + _TEXT("\n") +
+						_TEXT("Memory Usage:\t\t") + ToString(GlobalAllocator::UsedSize()) + _TEXT("\n") +
 						_TEXT("Memory Allocated:\t") + ToString(GlobalAllocator::AllocatedSize()) + _TEXT("\n")
 					);
 					return 0;
