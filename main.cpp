@@ -1427,11 +1427,522 @@ class LightTest : public Test {
 		}
 };
 
+class PhysicsTest : public Test {
+	public:
+		const Math::Vector2 Screen {1440.0, 900.0};
+		const Math::Rectangle Viewbox {-2.88, 1.8, 5.76, -3.6};
+
+		PhysicsTest() : Test(), fnt(&context) {
+			fnt.Face = FontFace("Inconsolata.otf", 20.0);
+			{
+				size_t splits = 4;
+				double pof = Pi * 2.0 / splits, ang = 0.0;
+				for (size_t i = 0; i < splits; ++i, ang += pof) {
+					p1.Shape.Points.PushBack(0.8 * Vector2(cos(ang), sin(ang)));
+				}
+				p1.Offset.X = -1.0;
+				p1.ComputeMassInfo();
+			}
+
+			{
+				size_t splits = 7;
+				double pof = Pi * 2.0 / splits, ang = 0.0;
+				for (size_t i = 0; i < splits; ++i, ang += pof) {
+					p2.Shape.Points.PushBack(0.6 * Vector2(cos(ang), sin(ang)));
+				}
+				p2.Offset.X = 1.0;
+				p2.ComputeMassInfo();
+			}
+
+			window.ClientSize = Screen;
+			window.PutToCenter();
+			r.SetViewport(Screen);
+			r.SetViewbox(Viewbox);
+			r.SetBackground(Color(0, 0, 0, 255));
+
+			world.SetFather(&window);
+			world.SetBounds(Screen);
+
+			sldindc.BrushColor() = Color(255, 255, 255, 255);
+			sld.IndicatorBrush() = &sldindc;
+
+			sld.SetSize(Size(200.0, 40.0));
+			sld.SetAnchor(Anchor::BottomLeft);
+			sld.SetValue(e);
+			sld.SetMaxValue(1.0);
+			sld.ValueChanged += [&](const Info&) {
+				e = sld.GetValue();
+			};
+			world.SetChild(&sld);
+
+			window.MouseDown += [&](const MouseButtonInfo&) {
+				if (p1.HitTest(mpos)) {
+					focus = &p1;
+				} else if (p2.HitTest(mpos)) {
+					focus = &p2;
+				} else {
+					focus = nullptr;
+				}
+				if (focus) {
+					drpos = focus->PointToShapeCoordinates(mpos);
+				}
+			};
+			window.MouseUp += [&](const MouseButtonInfo&) {
+				focus = nullptr;
+			};
+			window.MouseMove += [&](const MouseMoveInfo &info) {
+				lmpos = mpos;
+				mpos = (info.Position - Vector2(720.0, 450.0)) / 250.0;
+				mpos.Y = -mpos.Y;
+			};
+		}
+
+		void Correct(const Vector2 &pos, Vector2 &spd) {
+			if (pos.X < Viewbox.Left) {
+				spd.X = Abs(spd.X);
+			}
+			if (pos.X > Viewbox.Right) {
+				spd.X = -Abs(spd.X);
+			}
+			if (pos.Y > Viewbox.Top) {
+				spd.Y = -Abs(spd.Y);
+			}
+			if (pos.Y < Viewbox.Bottom) {
+				spd.Y = Abs(spd.Y);
+			}
+		}
+
+		void Update(double dt) override {
+			counter.Update(dt);
+			if (focus) {
+				Vector2 spdat = focus->DirectionToShapeCoordinates(drpos);
+				spdat.RotateLeft90();
+				spdat = spdat * focus->AngularSpeed + focus->DirectionToShapeCoordinates(focus->Speed);
+				focus->ApplyImpulse(drpos, ((focus->PointToShapeCoordinates(mpos) - drpos) * 100.0 - spdat * 10.0) * dt);
+			}
+			Correct(p1.Offset, p1.Speed);
+			Correct(p2.Offset, p2.Speed);
+			p1.Update(dt);
+			p2.Update(dt);
+			List<NodeInfo> ni = GJK(p1, p2);
+			if (ni.Count() > 0) {
+				Segment sg = EPAClockwise(ni, p1, p2);
+				Vector2
+					cp = (
+						sg.P1.ID1 == sg.P2.ID1 ?
+						p1.PointToWorldCoordinates(p1.Shape.Points[sg.P1.ID1]) :
+						p2.PointToWorldCoordinates(p2.Shape.Points[sg.P1.ID2])
+					),
+					n = sg.P2.Position - sg.P1.Position;
+				n.RotateRight90();
+				pen = SolveCollision(p1, p2, cp, n, e);
+			}
+			world.Update(dt);
+		}
+
+		void Render() override {
+			r.Begin();
+
+			r.SetViewbox(Screen);
+
+			world.Render(r);
+
+			BasicText t;
+			t.Font = &fnt;
+			t.TextColor = Color(255, 255, 255, 255);
+			t.LayoutRectangle = Screen;
+			t.HorizontalAlignment = HorizontalTextAlignment::Left;
+			t.VerticalAlignment = VerticalTextAlignment::Top;
+			t.Content =
+				_TEXT("Total Energy: ") + ToString(p1.GetEnergy() + p2.GetEnergy()) + _TEXT("\n") +
+				_TEXT("e: ") + ToString(e) + _TEXT("\n") +
+				_TEXT("FPS: ") + ToString(counter.GetFPS());
+			t.Render(r);
+
+			r.SetViewbox(Viewbox);
+
+			List<Vertex> vxs;
+			DrawPolygon(p1, Color(255, 255, 255, 255));
+			DrawPolygon(p2, Color(255, 255, 255, 255));
+			if (focus) {
+				FillConvexPolygon(*focus, Color(255, 255, 255, 100));
+				vxs.Clear();
+				vxs.PushBack(Vertex(focus->PointToWorldCoordinates(drpos), Color(255, 255, 255, 255)));
+				vxs.PushBack(Vertex(mpos, Color(255, 255, 255, 255)));
+				r.DrawVertices(vxs, RenderMode::Lines);
+			}
+			vxs.Clear();
+			vxs.PushBack(Vertex(mpos, Color(0, 255, 0, 255)));
+			vxs.PushBack(Vertex(Vector2(), Color(255, 0, 0, 255)));
+			vxs.PushBack(Vertex(p1.PointToWorldCoordinates(p1.MassCenter), Color(50, 50, 255, 255)));
+			vxs.PushBack(Vertex(p2.PointToWorldCoordinates(p2.MassCenter), Color(50, 50, 255, 255)));
+			r.SetPointSize(10.0);
+			r.DrawVertices(vxs, RenderMode::Points);
+
+//			vxs.Clear();
+//			List<Vector2> minres = MinusPolygons(p1, p2);
+//			minres.ForEach([&](Vector2 &v) {
+//				vxs.PushBack(Vertex(v, Color(255, 255, 0, 255)));
+//				return true;
+//			});
+//			r.SetPointSize(5.0);
+//			r.DrawVertices(vxs, RenderMode::Points);
+//
+//			Body tp;
+//			tp.Shape.Points = Hull(minres);
+//			DrawPolygon(tp, Color(255, 255, 0, 255));
+
+//			List<NodeInfo> ni = GJK(p1, p2);
+//			if (ni.Count() > 0) {
+//				vxs.Clear();
+//				vxs.PushBack(Vertex(ni[0].Position, Color(255, 0, 0, 255)));
+//				vxs.PushBack(Vertex(ni[1].Position, Color(255, 0, 0, 255)));
+//				vxs.PushBack(Vertex(ni[1].Position, Color(255, 0, 0, 255)));
+//				vxs.PushBack(Vertex(ni[2].Position, Color(255, 0, 0, 255)));
+//				vxs.PushBack(Vertex(ni[2].Position, Color(255, 0, 0, 255)));
+//				vxs.PushBack(Vertex(ni[0].Position, Color(255, 0, 0, 255)));
+//				r.DrawVertices(vxs, RenderMode::Lines);
+//
+//				Segment sg = EPAClockwise(ni, p1, p2);
+//				vxs.Clear();
+//				vxs.PushBack(Vertex(sg.P1.Position, Color(100, 100, 255, 255)));
+//				vxs.PushBack(Vertex(sg.P2.Position, Color(100, 100, 255, 255)));
+//				Vector2 n = sg.P2.Position - sg.P1.Position;
+//				n.RotateRight90();
+//				n.SetLength(0.2);
+//				Vector2
+//					p11 = p1.PointToWorldCoordinates(p1.Shape.Points[sg.P1.ID1]),
+//					p21 = p2.PointToWorldCoordinates(p2.Shape.Points[sg.P1.ID2]),
+//					p12 = p1.PointToWorldCoordinates(p1.Shape.Points[sg.P2.ID1]),
+//					p22 = p2.PointToWorldCoordinates(p2.Shape.Points[sg.P2.ID2]),
+//					c = (sg.P1.ID1 == sg.P2.ID1 ? p11 : p21);
+//				vxs.PushBack(Vertex(c, Color(0, 0, 255, 255)));
+//				vxs.PushBack(Vertex(c + n, Color(0, 0, 255, 255)));
+//				vxs.PushBack(Vertex(sg.P1.Position, Color(0, 0, 255, 255)));
+//				vxs.PushBack(Vertex(sg.P1.Position + n, Color(0, 0, 255, 255)));
+//				r.DrawVertices(vxs, RenderMode::Lines);
+//				vxs.Clear();
+//				Color cc = (pen ? Color(0, 255, 0, 255) : Color(255, 0, 0, 255));
+//				vxs.PushBack(Vertex(p11, cc));
+//				vxs.PushBack(Vertex(p21, cc));
+//				vxs.PushBack(Vertex(p12, cc));
+//				vxs.PushBack(Vertex(p22, cc));
+//				r.SetPointSize(8.0);
+//				r.DrawVertices(vxs, RenderMode::Points);
+//			}
+
+			r.End();
+		}
+	protected:
+		struct Polygon {
+			List<Vector2> Points;
+		};
+		struct Body {
+			Polygon Shape;
+			Vector2 Offset;
+			double Rotation = 0.0;
+
+			double Density = 7.0, Mass = 0.0, Inertia = 0.0;
+			Vector2 MassCenter;
+
+			Vector2 Speed;
+			double AngularSpeed = 0.0;
+
+			// stuff about shape
+			List<Vector2> GetAllPoints() const {
+				List<Vector2> result = Shape.Points;
+				Vector2 rotv(cos(Rotation), sin(Rotation));
+				result.ForEach([&](Vector2 &v) {
+					v = Vector2(v.X * rotv.X - v.Y * rotv.Y, v.X * rotv.Y + v.Y * rotv.X) + Offset;
+					return true;
+				});
+				return result;
+			}
+			Vector2 PointToShapeCoordinates(const Vector2 &pos) const {
+				return DirectionToShapeCoordinates(pos - Offset);
+			}
+			Vector2 DirectionToShapeCoordinates(const Vector2 &dir) const {
+				Vector2 rotv(std::cos(Rotation), -std::sin(Rotation));
+				return Vector2(dir.X * rotv.X - dir.Y * rotv.Y, dir.X * rotv.Y + dir.Y * rotv.X);
+			}
+			Vector2 PointToWorldCoordinates(const Vector2 &pos) const {
+				return DirectionToWorldCoordinates(pos) + Offset;
+			}
+			Vector2 DirectionToWorldCoordinates(const Vector2 &dir) const {
+				Vector2 rotv(std::cos(Rotation), std::sin(Rotation));
+				return Vector2(dir.X * rotv.X - dir.Y * rotv.Y, dir.X * rotv.Y + dir.Y * rotv.X);
+			}
+
+			size_t SupportPoint(const Vector2 &dir) const {
+				Vector2 mdir = DirectionToShapeCoordinates(dir);
+				size_t pt = 0;
+				Vector2 p = ProjectionY(Shape.Points[0], mdir);
+				for (size_t i = 1; i < Shape.Points.Count(); ++i) {
+					Vector2 cpj = ProjectionY(Shape.Points[i], mdir);
+					if (Vector2::Dot(mdir, cpj - p) > 0.0) {
+						pt = i;
+						p = cpj;
+					}
+				}
+				return pt;
+			}
+
+			bool HitTest(const Vector2 &v) const {
+				return PolygonPointIntersect(Shape.Points, PointToShapeCoordinates(v)) == IntersectionType::Full;
+			}
+
+			// stuff about dynamics
+			void ComputeMassInfo() {
+				double totf = 0.0, totine;
+				Vector2 tp;
+				for (size_t i = 2; i < Shape.Points.Count(); ++i) {
+					Vector2 dprv = Shape.Points[i - 1] - Shape.Points[0], dcur = Shape.Points[i] - Shape.Points[0];
+					double v = Vector2::Cross(dprv, dcur);
+					totine += (dprv.LengthSquared() + dcur.LengthSquared() + Vector2::Dot(dprv, dcur)) * v;
+					tp += (Shape.Points[0] + Shape.Points[i - 1] + Shape.Points[i]) * v;
+					totf += v;
+				}
+				MassCenter = tp / (totf * 3.0);
+				Mass = Abs(totf) * 0.5 * Density;
+				Inertia = Abs(totine * Density / 12.0) - Mass * (MassCenter - Shape.Points[0]).LengthSquared();
+			}
+
+			void Update(double dt) {
+				Vector2 nmc = Offset + DirectionToWorldCoordinates(MassCenter) + Speed * dt;
+				Rotation += AngularSpeed * dt;
+				Offset = nmc - DirectionToWorldCoordinates(MassCenter);
+			}
+			void ApplyImpulse(const Vector2 &shapePos, const Vector2 &shapeImpl) {
+				Speed += DirectionToWorldCoordinates(shapeImpl) / Mass;
+				AngularSpeed += Vector2::Cross(shapePos - MassCenter, shapeImpl) / Inertia;
+			}
+
+			double GetEnergy() const {
+				return 0.5 * (Mass * Speed.LengthSquared() + AngularSpeed * AngularSpeed * Inertia);
+			}
+		};
+
+		Body p1, p2, *focus = nullptr;
+		Vector2 mpos, lmpos, drpos;
+		bool pen = false;
+		double e = 0.0;
+
+		AutoFont fnt;
+		FPSCounter counter;
+
+		UI::World world;
+		SliderBase sld;
+		SolidBrush sldindc;
+
+		List<Vector2> MinusPolygons(const Body &lhs, const Body &rhs) {
+			List<Vector2> vl = lhs.GetAllPoints(), vr = rhs.GetAllPoints(),res;
+			vl.ForEach([&](const Vector2 &v1) {
+				vr.ForEach([&](const Vector2 &v2) {
+					res.PushBack(v1 - v2);
+					return true;
+				});
+				return true;
+			});
+			return res;
+		}
+		List<Vector2> Hull(const List<Vector2> vxs) { // absolutely no optimization, O(n^2)
+			List<Vector2> topop = vxs;
+			for (size_t i = 1; i < topop.Count(); ++i) {
+				if (topop[i - 1].Y < topop[i].Y) {
+					topop.Swap(i - 1, i);
+				}
+			}
+			List<Vector2> result;
+			result.PushBack(topop.PopBack());
+			while (topop.Count() > 0) {
+				size_t id = 0;
+				Vector2 dir = topop[0] - result.Last();
+				for (size_t i = 1; i < topop.Count(); ++i) {
+					Vector2 cv = topop[i] - result.Last();
+					if (Vector2::Cross(dir, cv) < 0.0) {
+						id = i;
+						dir = cv;
+					}
+				}
+				if (Vector2::Cross(dir, result[0] - result.Last()) < 0.0) {
+					break;
+				}
+				topop.SwapToBack(id);
+				result.PushBack(topop.PopBack());
+			}
+			return result;
+		}
+
+		struct NodeInfo {
+			NodeInfo() = default;
+			NodeInfo(size_t id1, size_t id2, const Vector2 &pos) : ID1(id1), ID2(id2), Position(pos) {
+			}
+
+			size_t ID1 = 0, ID2 = 0;
+			Vector2 Position;
+		};
+		List<NodeInfo> GJK(const Body &p1, const Body &p2) {
+			List<NodeInfo> result;
+			NodeInfo v[3];
+			v[0].ID1 = p1.SupportPoint(Vector2(1.0, 0.0));
+			v[0].ID2 = p2.SupportPoint(Vector2(-1.0, 0.0));
+			v[0].Position = p1.PointToWorldCoordinates(p1.Shape.Points[v[0].ID1]) - p2.PointToWorldCoordinates(p2.Shape.Points[v[0].ID2]);
+			size_t vn = 1;
+			for (int x = 0; x < 100; ++x) { // NOTE an arbitary number of max iterations
+				Vector2 spdir;
+				size_t excl = vn;
+				bool fin = false;
+				switch (vn) {
+					case 1: {
+						spdir = -v[0].Position;
+						break;
+					}
+					case 2: {
+						spdir = v[1].Position - v[0].Position;
+						spdir.RotateLeft90();
+						if (Vector2::Dot(spdir, v[1].Position) > 0.0) {
+							spdir = -spdir;
+						}
+						break;
+					}
+					case 3: {
+						spdir = v[1].Position - v[0].Position;
+						spdir.RotateLeft90();
+						if (Vector2::Dot(spdir, v[1].Position) > 0.0) {
+							spdir = v[2].Position - v[1].Position;
+							spdir.RotateLeft90();
+							if (Vector2::Dot(spdir, v[1].Position) > 0.0) {
+								spdir = v[0].Position - v[2].Position;
+								spdir.RotateLeft90();
+								if (Vector2::Dot(spdir, v[0].Position) > 0.0) {
+									fin = true;
+								}
+								excl = 1;
+							} else {
+								excl = 0;
+							}
+						} else {
+							excl = 2;
+						}
+						break;
+					}
+				}
+				if (fin) {
+					result.PushBackRange(v, 3);
+					break;
+				}
+				NodeInfo ni;
+				ni.ID1 = p1.SupportPoint(spdir);
+				ni.ID2 = p2.SupportPoint(-spdir);
+				ni.Position = p1.PointToWorldCoordinates(p1.Shape.Points[ni.ID1]) - p2.PointToWorldCoordinates(p2.Shape.Points[ni.ID2]);
+				if (Vector2::Dot(spdir, ni.Position) < 0.0) { // no intersection
+					return List<NodeInfo>();
+				}
+				v[excl] = ni;
+				if (vn < 3) {
+					++vn;
+				}
+				if (vn == 3) {
+					if (Vector2::Cross(v[1].Position - v[0].Position, v[2].Position - v[0].Position) > 0.0) {
+						Swap(v[0], v[1]);
+					}
+				}
+			}
+			return result;
+		}
+		struct Segment {
+			Segment() = default;
+			Segment(const NodeInfo &i1, const NodeInfo &i2) : P1(i1), P2(i2) {
+			}
+
+			NodeInfo P1, P2;
+		};
+		Segment EPAClockwise(const List<NodeInfo> &gjkRes, const Body &p1, const Body &p2) { // assuming gjkRes comes clockwise
+			List<Segment> segments;
+			NodeInfo last = gjkRes.Last();
+			gjkRes.ForEach([&](const NodeInfo &ni) {
+				segments.PushBack(Segment(ni, last));
+				last = ni;
+				return true;
+			});
+			for (size_t z = 0; z < 100; ++z) { // NOTE an arbitrary number of iterations
+				double minlsq;
+				size_t id = segments.Count();
+				for (size_t i = 0; i < segments.Count(); ++i) { // NOTE heaps can be used to optimize this
+					const Segment &curseg = segments[i];
+					double dsq = ProjectionX(curseg.P1.Position, curseg.P1.Position - curseg.P2.Position).LengthSquared();
+					if (id >= segments.Count() || minlsq > dsq) {
+						id = i;
+						minlsq = dsq;
+					}
+				}
+				Segment &curseg = segments[id];
+				Vector2 axis = curseg.P1.Position - curseg.P2.Position;
+				axis.RotateLeft90();
+				NodeInfo ni;
+				ni.ID1 = p1.SupportPoint(axis);
+				ni.ID2 = p2.SupportPoint(-axis);
+				if ((ni.ID1 == curseg.P1.ID1 && ni.ID2 == curseg.P1.ID2) || (ni.ID1 == curseg.P2.ID1 && ni.ID2 == curseg.P2.ID2)) {
+					return curseg;
+				}
+				ni.Position = p1.PointToWorldCoordinates(p1.Shape.Points[ni.ID1]) - p2.PointToWorldCoordinates(p2.Shape.Points[ni.ID2]);
+				segments.PushBack(Segment(ni, curseg.P2));
+				curseg.P2 = ni;
+			}
+			return Segment(); // this should never happen
+		}
+		bool SolveCollision(Body &b1, Body &b2, const Vector2 &penPt, const Vector2 &normal12, double restitution) {
+			Vector2
+				r1 = penPt - b1.PointToWorldCoordinates(b1.MassCenter),
+				r2 = penPt - b2.PointToWorldCoordinates(b2.MassCenter),
+				v1 = r1,
+				v2 = r2;
+			v1.RotateLeft90();
+			v2.RotateLeft90();
+			Vector2 vdiff = v2 * b2.AngularSpeed + b2.Speed - (v1 * b1.AngularSpeed + b1.Speed);
+			if (Vector2::Dot(vdiff, normal12) >= 0.0) {
+				return false;
+			}
+			double k = (1 + restitution) * Vector2::Dot(vdiff, normal12);
+			double lowerpart =
+				normal12.LengthSquared() * (1.0 / b1.Mass + 1.0 / b2.Mass) +
+				Vector2::Dot(v1 * Vector2::Cross(r1, normal12) / b1.Inertia + v2 * Vector2::Cross(r2, normal12) / b2.Inertia, normal12);
+			Vector2 impl = normal12 * k / lowerpart;
+			b1.ApplyImpulse(b1.PointToShapeCoordinates(penPt), b1.DirectionToShapeCoordinates(impl));
+			b2.ApplyImpulse(b2.PointToShapeCoordinates(penPt), b2.DirectionToShapeCoordinates(-impl));
+			return true;
+		}
+
+		void DrawPolygon(const Body &p, const Color &c) {
+			List<Vector2> vs = p.GetAllPoints();
+			List<Vertex> vxs;
+			Vector2 last = vs.Last();
+			vs.ForEach([&](const Vector2 &v) {
+				vxs.PushBack(Vertex(last, c));
+				vxs.PushBack(Vertex(last = v, c));
+				return true;
+			});
+			r.DrawVertices(vxs, RenderMode::Lines);
+		}
+		void FillConvexPolygon(const Body &p, const Color &c) {
+			List<Vector2> vs = p.GetAllPoints();
+			List<Vertex> vxs;
+			Vector2 last = vs[1];
+			for (size_t i = 2; i < vs.Count(); ++i) {
+				vxs.PushBack(Vertex(vs[0], c));
+				vxs.PushBack(Vertex(last, c));
+				vxs.PushBack(Vertex(last = vs[i], c));
+			}
+			r.DrawVertices(vxs, RenderMode::Triangles);
+		}
+};
+
 int main() {
 	{
 		try {
-			ControlTest pl;
+//			ControlTest pl;
 //			LightTest pl;
+			PhysicsTest pl;
 			pl.Run();
 		} catch (Exception &e) {
 			ShowMessage(e.Message());

@@ -228,7 +228,7 @@ namespace DE {
 				size_t&, Vector2&, Vector2&
 			);
 
-			IntersectionType PolygonPointIntersection(const Core::Collections::List<Vector2>&, const Vector2&);
+			IntersectionType PolygonPointIntersect(const Core::Collections::List<Vector2>&, const Vector2&);
 
 
 			void Projection(const Vector2&, const Vector2&, Vector2&, Vector2&);

@@ -276,6 +276,7 @@ namespace DE {
 #ifdef STRICT_RUNTIME_CHECK
 						++_inFE;
 #endif
+						OnChanged();
 						if (_data) {
 							T *fin = _data->GetArray() + _data->Count;
 							for (T *cur = _data->GetArray(); cur != fin; ++cur) {

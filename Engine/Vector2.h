@@ -13,21 +13,6 @@ namespace DE {
 				OneOverSqrtTwo = 0.7071067812,
 				Epsilon = 1e-6;
 		    struct Vector2 {
-				/* FIXME change to the right coordinate system
-				 * i.e.,
-				 * +---------->
-				 * |
-				 * |   (+,+)
-				 * |
-				 * v
-				 *
-				 * currently:
-				 * ^
-				 * |
-				 * |   (+,+)
-				 * |
-				 * +---------->
-				 */
 				double X = 0.0, Y = 0.0;
 
 				constexpr Vector2() = default;
@@ -77,8 +62,8 @@ namespace DE {
 					Y = t;
 				}
 
-				Vector2 operator +(const Vector2 &rhs) const {
-					return Vector2(X + rhs.X, Y + rhs.Y);
+				friend Vector2 operator +(const Vector2 &lhs, const Vector2 &rhs) {
+					return Vector2(lhs.X + rhs.X, lhs.Y + rhs.Y);
 				}
 				Vector2 &operator +=(const Vector2 &rhs) {
 					X += rhs.X;
@@ -89,8 +74,8 @@ namespace DE {
 				Vector2 operator -() const {
 					return Vector2(-X, -Y);
 				}
-				Vector2 operator -(const Vector2 &rhs) const {
-					return Vector2(X - rhs.X, Y - rhs.Y);
+				friend Vector2 operator -(const Vector2 &lhs, const Vector2 &rhs) {
+					return Vector2(lhs.X - rhs.X, lhs.Y - rhs.Y);
 				}
 				Vector2 &operator -=(const Vector2 &rhs) {
 					X -= rhs.X;
@@ -98,8 +83,8 @@ namespace DE {
 					return *this;
 				}
 
-				Vector2 operator *(double rhs) const {
-					return Vector2(X * rhs, Y * rhs);
+				friend Vector2 operator *(const Vector2 &lhs, double rhs) {
+					return Vector2(rhs * lhs.X, rhs * lhs.Y);
 				}
 				friend Vector2 operator *(double lhs, const Vector2 &rhs) {
 					return Vector2(lhs * rhs.X, lhs * rhs.Y);
@@ -110,27 +95,14 @@ namespace DE {
 					return *this;
 				}
 
-				Vector2 operator /(double rhs) const {
-					return Vector2(X / rhs, Y / rhs);
+				friend Vector2 operator /(const Vector2 &lhs, double rhs) {
+					return Vector2(lhs.X / rhs, lhs.Y / rhs);
 				}
 				Vector2 &operator /=(double rhs) {
 					X /= rhs;
 					Y /= rhs;
 					return *this;
 				}
-
-                bool operator >(const Vector2 &rhs) const {
-                	return rhs.LengthSquared() < LengthSquared();
-                }
-                bool operator >=(const Vector2 &rhs) const {
-                	return rhs.LengthSquared() <= LengthSquared();
-                }
-                bool operator <(const Vector2 &rhs) const {
-                	return rhs.LengthSquared() > LengthSquared();
-                }
-                bool operator <=(const Vector2 &rhs) const {
-                	return rhs.LengthSquared() >= LengthSquared();
-                }
 
 				static double Dot(const Vector2 &lhs, const Vector2 &rhs) {
 					return lhs.X * rhs.X + lhs.Y * rhs.Y;

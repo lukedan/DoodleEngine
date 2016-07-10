@@ -228,78 +228,30 @@ namespace DE {
 				return (dissq > r ? IntersectionType::None : (dissq < r ? IntersectionType::Full : IntersectionType::Edge));
 			}
 
-			IntersectionType PolygonPointIntersection(const Collections::List<Vector2> &pol, const Vector2 &vs) { // FIXME: in error
-				const Vector2 direction(1.0, 0.0);
-
-				/*size_t count = 0;
-				for (size_t i = 0; i < pol.Count(); ++i) {
-					IntersectionType type = RaySegmentIntersect(vs, direction, pol[i], pol[(i + 1) % pol.Count()]);
-					if (type == IntersectionType::Full) {
-						++count;
-					} else if (type == IntersectionType::Edge) {
-						double
-							x1 = Vector2::Cross(direction, pol[i] - vs),
-							x2 = Vector2::Cross(direction, pol[(i + 2) % pol.Count()] - vs);
-						if (x1 * x2 < -Epsilon) {
-							++count;
-						}
-						++i;
+			IntersectionType PolygonPointIntersect(const Collections::List<Vector2> &pol, const Vector2 &vs) { // NOTE looks right, but not thoroughly tested
+				Vector2 last = pol.Last();
+				size_t sec = 0;
+				pol.ForEach([&](const Vector2 &v) {
+					Vector2 c1 = last, c2 = last = v;
+					if (c1.Y < c2.Y) {
+						Swap(c1, c2);
 					}
+					if (vs.Y < c1.Y && vs.Y >= c2.Y) {
+						double x = c1.X + (c2.X - c1.X) * (vs.Y - c1.Y) / (c2.Y - c1.Y);
+						if (vs.X < x) {
+							++sec;
+						}
+					}
+					return true;
+				});
+				if (sec % 2 == 0) {
+					return IntersectionType::None;
 				}
-				return (count % 2 == 1) ? IntersectionType::Full : IntersectionType::None;*/
-
-				#define DE_MATH_POLYPTISECT_MOVENEXT	\
-					last = cur;							\
-					cur = next;							\
-					++next;								\
-					if (next == pol.Count()) {			\
-						next = 0;						\
-						con = 1;						\
-					}
-				size_t last = pol.Count() - 1, cur = 0, next = 1, isc = 0;
-				Vector2 tv;
-				int con = 2;
-				do {
-					if (con == 1) {
-						--con;
-					}
-					while (EqualToZero(Vector2::Cross(pol[next] - pol[cur], direction))) {
-						++next;
-						if (next == pol.Count()) {
-							next = 0;
-							con = 1;
-						}
-					}
-					IntersectionType type = RaySegmentIntersect(vs, direction, pol[last], pol[cur], tv);
-					switch (type) {
-						case IntersectionType::Full: {
-							++isc;
-							break;
-						}
-						case IntersectionType::Edge: {
-							if ((tv - vs).LengthSquared() < Epsilon) {
-								return IntersectionType::Edge;
-							}
-							Vector2 a = pol[last] - pol[cur], b = pol[next] - pol[cur];
-							if (Vector2::Cross(direction, a) * Vector2::Cross(direction, b) < -Epsilon) {
-								++isc;
-							}
-							DE_MATH_POLYPTISECT_MOVENEXT; // ignore the next segment
-							break;
-						}
-						case IntersectionType::None: {
-							break;
-						}
-					}
-					DE_MATH_POLYPTISECT_MOVENEXT;
-				} while (con);
-				return (isc % 2 == 1) ? IntersectionType::Full : IntersectionType::None;
-				#undef DE_MATH_POLYPTISECT_MOVENEXT
+				return IntersectionType::Full;
 			}
 
 			void Projection(const Vector2 &tar, const Vector2 &yaxis, Vector2 &rx, Vector2 &ry) {
-				double yl = yaxis.LengthSquared();
-				ry = yaxis * (Vector2::Dot(yaxis, tar) / yl);
+				ry = yaxis * (Vector2::Dot(yaxis, tar) / yaxis.LengthSquared());
 				rx = tar - ry;
 			}
 			Vector2 ProjectionX(const Vector2 &tar, const Vector2 &yaxis) {
