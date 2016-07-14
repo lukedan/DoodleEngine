@@ -1,9 +1,6 @@
 #pragma once
 
 //#define TEST_KERNEL_LIST
-#ifdef DEBUG
-#	define STRICT_RUNTIME_CHECK
-#endif
 
 #include <cstdlib>
 #include <cstring>

@@ -5,7 +5,9 @@
 namespace DE {
 	namespace Core {
 		namespace Collections {
+			template <typename T> class LinkedList;
 			template <typename T> class LinkedListNode {
+					friend class LinkedList<T>;
 				public:
 					LinkedListNode() : _prev(nullptr), _next(nullptr) {
 					}
@@ -19,141 +21,147 @@ namespace DE {
 						return _data;
 					}
 
-					LinkedListNode<T> *&Previous() {
+					LinkedListNode *Previous() {
 						return _prev;
 					}
-					const LinkedListNode<T> *Previous() const {
+					const LinkedListNode *Previous() const {
 						return _prev;
 					}
-					LinkedListNode<T> *&Next() {
+					LinkedListNode *Next() {
 						return _next;
 					}
-					const LinkedListNode<T> *Next() const {
+					const LinkedListNode *Next() const {
 						return _next;
 					}
 				private:
 					T _data;
-					LinkedListNode<T> *_prev, *_next;
+					LinkedListNode *_prev, *_next;
 			};
-			template <typename T, class Allocator = GlobalAllocator> class LinkedList {
+			template <typename T> class LinkedList {
 				public:
-					LinkedList() : _head(nullptr), _tail(nullptr) {
+					typedef LinkedListNode<T> Node;
+
+					LinkedList() = default;
+					LinkedList(const LinkedList &src) {
+						CopyContentFrom(src);
+					}
+					LinkedList &operator =(const LinkedList &rhs) {
+						if (this == &rhs) {
+							return *this;
+						}
+						DeleteAllNodes();
+						CopyContentFrom(rhs);
+						return *this;
+					}
+					~LinkedList() {
+						DeleteAllNodes();
 					}
 
-					void InsertFirst(LinkedListNode<T> *n) {
-						if (n == nullptr) {
-							throw InvalidArgumentException(_TEXT("the node is null"));
-						}
-						if (n->Previous() != nullptr || n->Next() != nullptr) {
-							throw InvalidOperationException(_TEXT("the node is already in another linked list"));
-						}
-						n->Next() = _head;
-						if (_head) {
-							_head->Previous() = n;
+					Node *InsertFirst(const T &obj) {
+						Node *n = new (GlobalAllocator::Allocate(sizeof(Node))) Node(obj);
+						InsertFirst(n);
+						return n;
+					}
+					Node *InsertLast(const T &obj) {
+						Node *n = new (GlobalAllocator::Allocate(sizeof(Node))) Node(obj);
+						InsertLast(n);
+						return n;
+					}
+					Node *InsertAfter(LinkedListNode<T> *node, const T &obj) {
+						Node *n = new (GlobalAllocator::Allocate(sizeof(Node))) Node(obj);
+						if (node) {
+							InsertAfter(node, n);
 						} else {
-							_tail = n;
+							InsertFirst(n);
 						}
-						_head = n;
+						return n;
 					}
-					void InsertFirst(const T &obj) {
-						InsertFirst(new (Allocator::Allocate(sizeof(Node))) Node(obj));
-					}
-					void InsertLast(LinkedListNode<T> *n) {
-						if (n == nullptr) {
-							throw InvalidArgumentException(_TEXT("the node is null"));
-						}
-						if (n->Previous() != nullptr || n->Next() != nullptr) {
-							throw InvalidOperationException(_TEXT("the node is already in another linked list"));
-						}
-						n->Previous() = _tail;
-						if (_tail) {
-							_tail->Next() = n;
+					Node *InsertBefore(LinkedListNode<T> *node, const T &obj) {
+						Node *n = new (GlobalAllocator::Allocate(sizeof(Node))) Node(obj);
+						if (node) {
+							InsertBefore(node, n);
 						} else {
-							_head = n;
+							InsertLast(n);
 						}
-						_tail = n;
+						return n;
 					}
-					void InsertLast(const T &obj) {
-						InsertLast(new (Allocator::Allocate(sizeof(Node))) Node(obj));
-					}
-					void InsertAfter(LinkedListNode<T> *n, LinkedListNode<T> *target) {
-						if (target == nullptr) {
-							throw InvalidArgumentException(_TEXT("the node to insert is null"));
-						}
-						if (target->Previous() != nullptr || target->Next() != nullptr) {
-							throw InvalidOperationException(_TEXT("the node is already in another linked list"));
-						}
-						if (n == nullptr) {
-							throw InvalidArgumentException(_TEXT("cannot be inserted after a null node"));
-						}
-						if (n->Next()) {
-							n->Next()->Previous() = target;
-						}
-						target->Next() = n->Next();
-						n->Next() = target;
-						target->Previous() = n;
-						if (n == _tail) {
-							_tail = target;
-						}
-					}
-					void InsertBefore(LinkedListNode<T> *n, LinkedListNode<T> *target) {
-						if (target == nullptr) {
-							throw InvalidArgumentException(_TEXT("the node to insert is null"));
-						}
-						if (target->Previous() != nullptr || target->Next() != nullptr) {
-							throw InvalidOperationException(_TEXT("the node is already in another linked list"));
-						}
-						if (n == nullptr) {
-							throw InvalidArgumentException(_TEXT("cannot be inserted after a null node"));
-						}
-						if (n->Previous()) {
-							n->Previous()->Next() = target;
-						}
-						target->Previous() = n->Previous();
-						n->Previous() = target;
-						target->Next() = n;
-						if (n == _head) {
-							_head = target;
-						}
-					}
-					void Remove(LinkedListNode<T> *node) {
+					void Delete(LinkedListNode<T> *node) {
 						if (node == nullptr) {
 							throw InvalidArgumentException(_TEXT("removing a null node"));
 						}
-						if (node == _head) {
-							_head = node->Next();
-						}
-						if (node == _tail) {
-							_tail = node->Previous();
-						}
-						if (node->Next()) {
-							node->Next()->Previous() = node->Previous();
-						}
-						if (node->Previous()) {
-							node->Previous()->Next() = node->Next();
-						}
-						node->Previous() = node->Next() = nullptr;
+						(node->_next ? node->_next->_prev : _tail) = node->_prev;
+						(node->_prev ? node->_prev->_next : _head) = node->_next;
+						node->_prev = node->_next = nullptr;
+						node->~Node();
+						GlobalAllocator::Free(node);
 					}
 
-					LinkedListNode<T> *First() {
+					Node *First() {
 						return _head;
 					}
-					const LinkedListNode<T> *First() const {
+					const Node *First() const {
 						return _head;
 					}
-					LinkedListNode<T> *Last() {
+					Node *Last() {
 						return _tail;
 					}
-					const LinkedListNode<T> *Last() const {
+					const Node *Last() const {
 						return _tail;
 					}
 
 					void Clear() {
+						DeleteAllNodes();
 						_head = _tail = nullptr;
 					}
-				private:
-					typedef LinkedListNode<T> Node;
-					Node *_head, *_tail;
+				protected:
+					Node *_head = nullptr, *_tail = nullptr;
+
+					void InsertFirst(LinkedListNode<T> *n) {
+						n->_next = _head;
+						(_head ? _head->_prev : _tail) = n;
+						_head = n;
+					}
+					void InsertLast(LinkedListNode<T> *n) {
+						n->_prev = _tail;
+						(_tail ? _tail->_next : _head) = n;
+						_tail = n;
+					}
+					void InsertAfter(LinkedListNode<T> *n, LinkedListNode<T> *target) {
+						(n->_next ? n->_next->_prev : _tail) = target;
+						target->_next = n->_next;
+						n->_next = target;
+						target->_prev = n;
+					}
+					void InsertBefore(LinkedListNode<T> *n, LinkedListNode<T> *target) {
+						(n->_prev ? n->_prev->_next : _head) = target;
+						target->_prev = n->_prev;
+						n->_prev = target;
+						target->_next = n;
+					}
+
+					void DeleteAllNodes() {
+						Node *next = _head;
+						for (Node *cur = _head; cur; cur = next) {
+							next = cur->_next;
+							cur->~Node();
+							GlobalAllocator::Free(cur);
+						}
+					}
+					void CopyContentFrom(const LinkedList &src) {
+						if (src._head) {
+							_head = new (GlobalAllocator::Allocate(sizeof(Node))) Node(src._head->_data);
+							Node *last = _head;
+							for (Node *cur = src._head->_next; cur; cur = cur->_next) {
+								Node *dup = new (GlobalAllocator::Allocate(sizeof(Node))) Node(cur->_data);
+								last->_next = dup;
+								dup->_prev = last;
+								last = dup;
+							}
+							_tail = last;
+						} else {
+							_head = _tail = nullptr;
+						}
+					}
 			};
 		}
 	}

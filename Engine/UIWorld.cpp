@@ -39,31 +39,17 @@ namespace DE {
 			}
 		}
 		void World::SetFather(Window *el) {
-#define UI_W_OPERATEEVENT(OP)				\
-	_father->KeyDown OP keyDownL;			\
-	_father->KeyUp OP keyUpL;				\
-	_father->MouseDown OP mouseDownL;		\
-	_father->MouseHover OP mouseHoverL;		\
-	_father->MouseUp OP mouseUpL;			\
-	_father->MouseMove OP mouseMoveL;		\
-	_father->MouseEnter OP mouseEnterL;		\
-	_father->MouseLeave OP mouseLeaveL;		\
-	_father->MouseScroll OP mouseScrollL;	\
-	_father->KeyboardText OP textL;			\
-	_father->GotFocus OP gotFocusL;			\
-	_father->LostFocus OP lostFocusL;		\
-	_father->OnSetCursor OP onSetCursorL
 			if (_father) {
-				UI_W_OPERATEEVENT(-=);
+				_listeners->~ListenerAttachments();
+				Core::GlobalAllocator::Free(_listeners);
 				--_father->CursorOverrideCount();
 			}
 			_father = el;
 			if (_father) {
-				UI_W_OPERATEEVENT(+=);
+				_listeners = new (GlobalAllocator::Allocate(sizeof(ListenerAttachments))) ListenerAttachments(*this, *_father);
 				++_father->CursorOverrideCount();
 				OnMouseMove(MouseMoveInfo(_father->GetRelativeMousePosition(), SystemKey::None));
 			}
-#undef UI_W_OPERATEEVENT
 		}
 
 		void World::Update(double dt) {
@@ -198,6 +184,23 @@ namespace DE {
 				con->OnGotFocus(Info());
 			}
 			FocusChanged(Info());
+		}
+
+		World::ListenerAttachments::ListenerAttachments(World &w, Core::Window &wnd) :
+			KeyDownListener(wnd.KeyDown += [&](const Core::Input::KeyInfo &info) { w.OnKeyDown(info); }),
+			KeyUpListener(wnd.KeyUp += [&](const Core::Input::KeyInfo &info) { w.OnKeyUp(info); }),
+			MouseDownListener(wnd.MouseDown += [&](const Core::Input::MouseButtonInfo &info) { w.OnMouseDown(info); }),
+			MouseUpListener(wnd.MouseUp += [&](const Core::Input::MouseButtonInfo &info) { w.OnMouseUp(info); }),
+			MouseHoverListener(wnd.MouseHover += [&](const Core::Input::MouseButtonInfo &info) { w.OnMouseHover(info); }),
+			MouseMoveListener(wnd.MouseMove += [&](const Core::Input::MouseMoveInfo &info) { w.OnMouseMove(info); }),
+			MouseScrollListener(wnd.MouseScroll += [&](const Core::Input::MouseScrollInfo &info) { w.OnMouseScroll(info); }),
+			TextListener(wnd.KeyboardText += [&](const Core::Input::TextInfo &info) { w.OnText(info); }),
+			MouseEnterListener(wnd.MouseEnter += [&](const Core::Info &info) { w.OnMouseEnter(info); }),
+			MouseLeaveListener(wnd.MouseLeave += [&](const Core::Info &info) { w.OnMouseLeave(info); }),
+			GotFocusListener(wnd.GotFocus += [&](const Core::Info &info) { w.OnGotFocus(info); }),
+			LostFocusListener(wnd.LostFocus += [&](const Core::Info &info) { w.OnLostFocus(info); }),
+			SetCursorListener(wnd.OnSetCursor += [&](const Core::Info &info) { w.OnSetCursor(info); })
+		{
 		}
 	}
 }

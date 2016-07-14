@@ -1434,24 +1434,28 @@ class PhysicsTest : public Test {
 
 		PhysicsTest() : Test(), fnt(&context) {
 			fnt.Face = FontFace("Inconsolata.otf", 20.0);
-			{
+			for (size_t i = 0; i < 1; ++i) {
+				Body p1;
 				size_t splits = 4;
 				double pof = Pi * 2.0 / splits, ang = 0.0;
 				for (size_t i = 0; i < splits; ++i, ang += pof) {
-					p1.Shape.Points.PushBack(0.8 * Vector2(cos(ang), sin(ang)));
+					p1.Shape.Points.PushBack(0.3 * Vector2(cos(ang), sin(ang)));
 				}
-				p1.Offset.X = -1.0;
+				p1.Offset.Y = 1.0;
 				p1.ComputeMassInfo();
+				bs.PushBack(p1);
 			}
 
 			{
-				size_t splits = 7;
-				double pof = Pi * 2.0 / splits, ang = 0.0;
-				for (size_t i = 0; i < splits; ++i, ang += pof) {
-					p2.Shape.Points.PushBack(0.6 * Vector2(cos(ang), sin(ang)));
-				}
-				p2.Offset.X = 1.0;
+				Body p2;
+				p2.Shape.Points.PushBack(Vector2(2.0, -0.1));
+				p2.Shape.Points.PushBack(Vector2(2.0, 0.1));
+				p2.Shape.Points.PushBack(Vector2(-2.0, 0.1));
+				p2.Shape.Points.PushBack(Vector2(-2.0, -0.1));
+				p2.Offset.Y = -0.3;
 				p2.ComputeMassInfo();
+				p2.Type = BodyType::Static;
+				bs.PushBack(p2);
 			}
 
 			window.ClientSize = Screen;
@@ -1476,12 +1480,12 @@ class PhysicsTest : public Test {
 			world.SetChild(&sld);
 
 			window.MouseDown += [&](const MouseButtonInfo&) {
-				if (p1.HitTest(mpos)) {
-					focus = &p1;
-				} else if (p2.HitTest(mpos)) {
-					focus = &p2;
-				} else {
-					focus = nullptr;
+				focus = nullptr;
+				for (size_t i = 0; i < bs.Count(); ++i) {
+					if (bs[i].HitTest(mpos)) {
+						focus = &bs[i];
+						break;
+					}
 				}
 				if (focus) {
 					drpos = focus->PointToShapeCoordinates(mpos);
@@ -1520,22 +1524,30 @@ class PhysicsTest : public Test {
 				spdat = spdat * focus->AngularSpeed + focus->DirectionToShapeCoordinates(focus->Speed);
 				focus->ApplyImpulse(drpos, ((focus->PointToShapeCoordinates(mpos) - drpos) * 100.0 - spdat * 10.0) * dt);
 			}
-			Correct(p1.Offset, p1.Speed);
-			Correct(p2.Offset, p2.Speed);
-			p1.Update(dt);
-			p2.Update(dt);
-			List<NodeInfo> ni = GJK(p1, p2);
-			if (ni.Count() > 0) {
-				Segment sg = EPAClockwise(ni, p1, p2);
-				Vector2
-					cp = (
-						sg.P1.ID1 == sg.P2.ID1 ?
-						p1.PointToWorldCoordinates(p1.Shape.Points[sg.P1.ID1]) :
-						p2.PointToWorldCoordinates(p2.Shape.Points[sg.P1.ID2])
-					),
-					n = sg.P2.Position - sg.P1.Position;
-				n.RotateRight90();
-				pen = SolveCollision(p1, p2, cp, n, e);
+			for (size_t i = 0; i < bs.Count(); ++i) {
+				Correct(bs[i].Offset, bs[i].Speed);
+				bs[i].Update(dt);
+//				if (bs[i].Type == BodyType::Dynamic) {
+//					bs[i].Speed += Vector2(0.0, -10.0) * dt;
+//				}
+			}
+			for (size_t i = 0; i < bs.Count(); ++i) {
+				for (size_t j = i + 1; j < bs.Count(); ++j) {
+					Body &p1 = bs[i], &p2 = bs[j];
+					List<NodeInfo> ni = GJK(p1, p2);
+					if (ni.Count() > 0) {
+						Segment sg = EPAClockwise(ni, p1, p2);
+						Vector2
+							cp = (
+								sg.P1.ID1 == sg.P2.ID1 ?
+								p1.PointToWorldCoordinates(p1.Shape.Points[sg.P1.ID1]) :
+								p2.PointToWorldCoordinates(p2.Shape.Points[sg.P1.ID2])
+							),
+							n = sg.P2.Position - sg.P1.Position;
+						n.RotateRight90();
+						pen = SolveCollision(p1, p2, cp, n, e, 0.5);
+					}
+				}
 			}
 			world.Update(dt);
 		}
@@ -1553,8 +1565,13 @@ class PhysicsTest : public Test {
 			t.LayoutRectangle = Screen;
 			t.HorizontalAlignment = HorizontalTextAlignment::Left;
 			t.VerticalAlignment = VerticalTextAlignment::Top;
+			double energy = 0.0;
+			bs.ForEach([&](const Body &b) {
+				energy += b.GetEnergy();
+				return true;
+			});
 			t.Content =
-				_TEXT("Total Energy: ") + ToString(p1.GetEnergy() + p2.GetEnergy()) + _TEXT("\n") +
+				_TEXT("Total Energy: ") + ToString(energy) + _TEXT("\n") +
 				_TEXT("e: ") + ToString(e) + _TEXT("\n") +
 				_TEXT("FPS: ") + ToString(counter.GetFPS());
 			t.Render(r);
@@ -1562,8 +1579,10 @@ class PhysicsTest : public Test {
 			r.SetViewbox(Viewbox);
 
 			List<Vertex> vxs;
-			DrawPolygon(p1, Color(255, 255, 255, 255));
-			DrawPolygon(p2, Color(255, 255, 255, 255));
+			bs.ForEach([&](const Body &b) {
+				DrawPolygon(b, Color(255, 255, 255, 255));
+				return true;
+			});
 			if (focus) {
 				FillConvexPolygon(*focus, Color(255, 255, 255, 100));
 				vxs.Clear();
@@ -1574,8 +1593,10 @@ class PhysicsTest : public Test {
 			vxs.Clear();
 			vxs.PushBack(Vertex(mpos, Color(0, 255, 0, 255)));
 			vxs.PushBack(Vertex(Vector2(), Color(255, 0, 0, 255)));
-			vxs.PushBack(Vertex(p1.PointToWorldCoordinates(p1.MassCenter), Color(50, 50, 255, 255)));
-			vxs.PushBack(Vertex(p2.PointToWorldCoordinates(p2.MassCenter), Color(50, 50, 255, 255)));
+			bs.ForEach([&](const Body &b) {
+				vxs.PushBack(Vertex(b.PointToWorldCoordinates(b.MassCenter), Color(50, 50, 255, 255)));
+				return true;
+			});
 			r.SetPointSize(10.0);
 			r.DrawVertices(vxs, RenderMode::Points);
 
@@ -1637,11 +1658,16 @@ class PhysicsTest : public Test {
 		struct Polygon {
 			List<Vector2> Points;
 		};
+		enum class BodyType {
+			Dynamic,
+			Static
+		};
 		struct Body {
 			Polygon Shape;
 			Vector2 Offset;
 			double Rotation = 0.0;
 
+			BodyType Type = BodyType::Dynamic;
 			double Density = 7.0, Mass = 0.0, Inertia = 0.0;
 			Vector2 MassCenter;
 
@@ -1713,16 +1739,22 @@ class PhysicsTest : public Test {
 				Offset = nmc - DirectionToWorldCoordinates(MassCenter);
 			}
 			void ApplyImpulse(const Vector2 &shapePos, const Vector2 &shapeImpl) {
-				Speed += DirectionToWorldCoordinates(shapeImpl) / Mass;
-				AngularSpeed += Vector2::Cross(shapePos - MassCenter, shapeImpl) / Inertia;
+				if (Type == BodyType::Dynamic) {
+					Speed += DirectionToWorldCoordinates(shapeImpl) / Mass;
+					AngularSpeed += Vector2::Cross(shapePos - MassCenter, shapeImpl) / Inertia;
+				}
 			}
 
 			double GetEnergy() const {
-				return 0.5 * (Mass * Speed.LengthSquared() + AngularSpeed * AngularSpeed * Inertia);
+				if (Type == BodyType::Dynamic) {
+					return 0.5 * (Mass * Speed.LengthSquared() + AngularSpeed * AngularSpeed * Inertia);
+				}
+				return 0.0;
 			}
 		};
 
-		Body p1, p2, *focus = nullptr;
+		List<Body> bs;
+		Body *focus = nullptr;
 		Vector2 mpos, lmpos, drpos;
 		bool pen = false;
 		double e = 0.0;
@@ -1891,23 +1923,41 @@ class PhysicsTest : public Test {
 			}
 			return Segment(); // this should never happen
 		}
-		bool SolveCollision(Body &b1, Body &b2, const Vector2 &penPt, const Vector2 &normal12, double restitution) {
+		bool SolveCollision(Body &b1, Body &b2, const Vector2 &penPt, const Vector2 &normal12, double restitution, double friction) { // TODO friction not working well
+			double invm1 = 0.0, invm2 = 0.0, invi1 = 0.0, invi2 = 0.0;
+			if (b1.Type == BodyType::Dynamic) {
+				invm1 = 1.0 / b1.Mass;
+				invi1 = 1.0 / b1.Inertia;
+			}
+			if (b2.Type == BodyType::Dynamic) {
+				invm2 = 1.0 / b2.Mass;
+				invi2 = 1.0 / b2.Inertia;
+			}
+
 			Vector2
 				r1 = penPt - b1.PointToWorldCoordinates(b1.MassCenter),
 				r2 = penPt - b2.PointToWorldCoordinates(b2.MassCenter),
 				v1 = r1,
-				v2 = r2;
+				v2 = r2,
+				rn = normal12;
 			v1.RotateLeft90();
 			v2.RotateLeft90();
+			rn.RotateLeft90();
 			Vector2 vdiff = v2 * b2.AngularSpeed + b2.Speed - (v1 * b1.AngularSpeed + b1.Speed);
 			if (Vector2::Dot(vdiff, normal12) >= 0.0) {
 				return false;
 			}
-			double k = (1 + restitution) * Vector2::Dot(vdiff, normal12);
-			double lowerpart =
-				normal12.LengthSquared() * (1.0 / b1.Mass + 1.0 / b2.Mass) +
-				Vector2::Dot(v1 * Vector2::Cross(r1, normal12) / b1.Inertia + v2 * Vector2::Cross(r2, normal12) / b2.Inertia, normal12);
-			Vector2 impl = normal12 * k / lowerpart;
+			if (Vector2::Dot(vdiff, rn) >= 0.0) {
+				friction = -friction;
+			}
+			double ratio =
+				(1.0 + restitution) * Vector2::Dot(vdiff, normal12) /
+				((invm1 + invm2) * normal12.LengthSquared() + Vector2::Dot(
+					normal12,
+					v2 * (invi2 * (Vector2::Cross(r2, normal12) + friction * Vector2::Cross(r2, rn))) +
+					v1 * (invi1 * (Vector2::Cross(r1, normal12) + friction * Vector2::Cross(r1, rn)))
+				));
+			Vector2 impl = (normal12 + friction * rn) * ratio;
 			b1.ApplyImpulse(b1.PointToShapeCoordinates(penPt), b1.DirectionToShapeCoordinates(impl));
 			b2.ApplyImpulse(b2.PointToShapeCoordinates(penPt), b2.DirectionToShapeCoordinates(-impl));
 			return true;

@@ -71,30 +71,28 @@ namespace DE {
 
 				Core::Event<Core::Info> FocusChanged;
 			private:
+				struct ListenerAttachments {
+					ListenerAttachments(World&, Core::Window&);
+
+					Core::AutomaticEventHandlerToken<Core::Input::KeyInfo>
+						KeyDownListener, KeyUpListener;
+					Core::AutomaticEventHandlerToken<Core::Input::MouseButtonInfo>
+						MouseDownListener, MouseUpListener, MouseHoverListener;
+					Core::AutomaticEventHandlerToken<Core::Input::MouseMoveInfo>
+						MouseMoveListener;
+					Core::AutomaticEventHandlerToken<Core::Input::MouseScrollInfo>
+						MouseScrollListener;
+					Core::AutomaticEventHandlerToken<Core::Input::TextInfo>
+						TextListener;
+					Core::AutomaticEventHandlerToken<Core::Info>
+						MouseEnterListener, MouseLeaveListener, GotFocusListener, LostFocusListener, SetCursorListener;
+				};
+
 				Core::Math::Rectangle _bound;
 				Control *_child = nullptr, *_focus = nullptr;
 				Core::Window *_father = nullptr;
 				bool _focused = false;
-
-				Core::Event<Core::Input::KeyInfo>::Handler
-					keyDownL = [this](const Core::Input::KeyInfo &info) { OnKeyDown(info); },
-					keyUpL = [this](const Core::Input::KeyInfo &info) { OnKeyUp(info); };
-				Core::Event<Core::Input::MouseButtonInfo>::Handler
-					mouseDownL = [this](const Core::Input::MouseButtonInfo &info) { OnMouseDown(info); },
-					mouseUpL = [this](const Core::Input::MouseButtonInfo &info) { OnMouseUp(info); },
-					mouseHoverL = [this](const Core::Input::MouseButtonInfo &info) { OnMouseHover(info); };
-				Core::Event<Core::Input::MouseMoveInfo>::Handler
-					mouseMoveL = [this](const Core::Input::MouseMoveInfo &info) { OnMouseMove(info); };
-				Core::Event<Core::Info>::Handler
-					mouseEnterL = [this](const Core::Info &info) { OnMouseEnter(info); },
-					mouseLeaveL = [this](const Core::Info &info) { OnMouseLeave(info); },
-					gotFocusL = [this](const Core::Info &info) { OnGotFocus(info); },
-					lostFocusL = [this](const Core::Info &info) { OnLostFocus(info); },
-					onSetCursorL = [this](const Core::Info &info) { OnSetCursor(info); };
-				Core::Event<Core::Input::MouseScrollInfo>::Handler
-					mouseScrollL = [this](const Core::Input::MouseScrollInfo &info) { OnMouseScroll(info); };
-				Core::Event<Core::Input::TextInfo>::Handler
-					textL = [this](const Core::Input::TextInfo &info) { OnText(info); };
+				ListenerAttachments *_listeners = nullptr;
 		};
 	}
 }
