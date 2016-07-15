@@ -282,18 +282,10 @@ namespace DE {
 				virtual bool OnMouseDown(const Core::Input::MouseButtonInfo &info) override {
 					bool res = ScrollViewBase::OnMouseDown(info);
 					if (Core::Math::Rectangle::Intersect(_visibleRgn, *info.Position) != Core::Math::IntersectionType::None) {
-						switch (*info.Button) {
-							case Core::Input::MouseButton::Left: {
-								size_t caretP = _lbl.Content().HitTestForCaret(info.Position);
-								SetCaretPositionInfo(caretP, GetMoveTypeWithShift(true));
-								_selecting = true;
-								break;
-							}
-							case Core::Input::MouseButton::Right:
-							case Core::Input::MouseButton::Middle: {
-								// nothing to do, just to disable the stupid warnings
-								break;
-							}
+						if (info.Button == Core::Input::MouseButton::Left) {
+							size_t caretP = _lbl.Content().HitTestForCaret(info.Position);
+							SetCaretPositionInfo(caretP, GetMoveTypeWithShift(true));
+							_selecting = true;
 						}
 					}
 					return res;
@@ -308,7 +300,7 @@ namespace DE {
 				virtual void OnKeyDown(const Core::Input::KeyInfo &info) override {
 					ScrollViewBase::OnKeyDown(info);
 					_blink = 0.0;
-					switch (info.GetKey()) {
+					switch (*info.Key) {
 						case VK_LEFT: {
 							if (_caret > 0) {
 								SetCaretPositionInfo(_caret - 1, GetMoveTypeWithShift(true));
@@ -406,7 +398,7 @@ namespace DE {
 					bool changed = true, hadSelection = DeleteSelectedBlock();
 					int target = _caret + 1;
 					_blink = 0.0;
-					switch (info.GetChar()) {
+					switch (*info.Char) {
 						case VK_BACK: {
 							if (!hadSelection) {
 								if (_caret > 0) {
@@ -421,7 +413,7 @@ namespace DE {
 							break;
 						}
 						default: {
-							TCHAR realChar = info.GetChar();
+							TCHAR realChar = info.Char;
 							if (realChar == _TEXT('\r')) {
 								realChar = _TEXT('\n');
 							}

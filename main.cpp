@@ -1036,7 +1036,7 @@ class LightTest : public Test {
 				}
 			};
 			window.KeyboardText += [&](const TextInfo &info) {
-				if (info.GetChar() == _TEXT('t')) {
+				if (info.Char == _TEXT('t')) {
 					switch (mode) {
 						case RenderMode::Triangles: {
 							mode = RenderMode::Lines;
@@ -1050,14 +1050,16 @@ class LightTest : public Test {
 							break;
 						}
 					}
-				} else if (info.GetChar() == _TEXT('w')) {
+				} else if (info.Char == _TEXT('w')) {
 					rw = !rw;
-				} else if (info.GetChar() == _TEXT('1')) {
+				} else if (info.Char == _TEXT('1')) {
 					--curRN;
-				} else if (info.GetChar() == _TEXT('2')) {
+				} else if (info.Char == _TEXT('2')) {
 					++curRN;
 				}
 			};
+
+			r.SetBackground(Color(0, 0, 0, 255));
 		}
 		~LightTest() {
 		}
@@ -1405,7 +1407,7 @@ class LightTest : public Test {
 			LightCaster::Wall lcw;
 			lcw.Node1 = v1;
 			lcw.Node2 = v2;
-			lcw.IsMirror = true;
+//			lcw.IsMirror = true;
 			caster.Walls().PushBack(lcw);
 			CharacterPhysics::Wall cpw;
 			cpw.Node1 = v1;
@@ -1990,9 +1992,9 @@ class PhysicsTest : public Test {
 int main() {
 	{
 		try {
-//			ControlTest pl;
+			ControlTest pl;
 //			LightTest pl;
-			PhysicsTest pl;
+//			PhysicsTest pl;
 			pl.Run();
 		} catch (Exception &e) {
 			ShowMessage(e.Message());

@@ -543,14 +543,14 @@ namespace DE {
 						} while (markID < txt.Changes.Count() && txt.Changes[markID].Position == i);
 						if (curInfo.Font) {
 							curh = curInfo.Font->GetHeight() * curInfo.Scale;
-							if (curh > maxh) {
-								maxh = curh;
-							}
 						} else {
 							continue;
 						}
 					} else if (!curInfo.Font) { // skip this char if no font specified
 						continue;
+					}
+					if (curh > maxh) {
+						maxh = curh;
 					}
 					const CharData &cData = curInfo.Font->GetData(curc);
 					curw += cData.Advance * curInfo.Scale;
@@ -579,7 +579,8 @@ namespace DE {
 						markID = breakMarkID;
 						hasBreakable = hasBreakableChar = false;
 						curw = 0.0;
-						maxh = curh = (curInfo.Font ? curInfo.Font->GetHeight() * curInfo.Scale : 0.0);
+						maxh = 0.0;
+						curh = (curInfo.Font ? curInfo.Font->GetHeight() * curInfo.Scale : 0.0);
 						continue;
 					}
 					// curc != '\n'

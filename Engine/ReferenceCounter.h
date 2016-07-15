@@ -76,9 +76,6 @@ namespace DE {
 
 			void *Pointer = nullptr;
 			std::function<void(void*)> FreeFunc;
-#ifdef DEBUG
-			MemoryMarker<30> _marker {"SharedPointer inner data"};
-#endif
 		};
 		template <typename T> struct SharedPointer {
 			public:

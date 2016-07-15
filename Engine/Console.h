@@ -501,7 +501,7 @@ namespace DE {
 					_input.MultiLine = false;
 					_input.Text().TextColor = Core::Color(0, 0, 0, 255);
 					_input.KeyboardText += [&](const Core::Input::TextInfo &info) {
-						if (info.GetChar() == _TEXT('\n') || info.GetChar() == _TEXT('\r')) {
+						if (info.Char == _TEXT('\n') || info.Char == _TEXT('\r')) {
 							if (_runner != nullptr) {
 								_runner->OnCommand(_input.Text().Content);
 							}

@@ -15,21 +15,9 @@ namespace DE {
 			enum class MouseButton {
 				Left = VK_LBUTTON,
 				Right = VK_RBUTTON,
-				Middle = VK_MBUTTON
+				Middle = VK_MBUTTON,
+				None = 0
 			};
-			inline int GetButtonBit(MouseButton btn) {
-				switch (btn) {
-					case MouseButton::Left:
-						return MK_LBUTTON;
-					case MouseButton::Right:
-						return MK_RBUTTON;
-					case MouseButton::Middle:
-						return MK_MBUTTON;
-					default:
-						return 0;
-				}
-			}
-
 			enum class SystemKey {
 				Ctrl = MK_CONTROL,
 				Shift = MK_SHIFT,
@@ -49,7 +37,7 @@ namespace DE {
 					}
 					MouseMoveInfo(WPARAM wParam, LPARAM lParam) :
 						Position(Math::Vector2(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))),
-						Keys((SystemKey)wParam)
+						Keys(static_cast<SystemKey>(wParam))
 					{
 					}
 
@@ -69,7 +57,7 @@ namespace DE {
 					}
 					MouseScrollInfo(WPARAM wParam, LPARAM lParam, const Math::Vector2 &tl) :
 						Position(Math::Vector2(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)) - tl),
-						Keys((SystemKey)LOWORD(wParam)),
+						Keys(static_cast<SystemKey>(LOWORD(wParam))),
 						Delta(GET_WHEEL_DELTA_WPARAM(wParam) / static_cast<double>(WHEEL_DELTA))
 					{
 					}
@@ -112,14 +100,14 @@ namespace DE {
 					}
 					MouseButtonInfo(WPARAM wParam, LPARAM lParam) :
 						Position(Math::Vector2(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))),
-						Button((MouseButton)0),
-						Keys((SystemKey)wParam)
+						Button(MouseButton::None),
+						Keys(static_cast<SystemKey>(wParam))
 					{
 					}
 					MouseButtonInfo(WPARAM wParam, LPARAM lParam, MouseButton b, bool altdown) :
 						Position(Math::Vector2(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam))),
 						Button(b),
-						Keys((SystemKey)(altdown ? wParam | (WPARAM)SystemKey::Alt : wParam))
+						Keys(static_cast<SystemKey>(altdown ? wParam | MK_ALT : wParam))
 					{
 					}
 
@@ -128,53 +116,48 @@ namespace DE {
 					ReferenceProperty<SystemKey, PropertyType::ReadOnly> Keys;
 
 					bool ContainsKey(SystemKey key) const {
-						return Keys.As<int>() & (int)key;
+						return Keys.As<int>() & static_cast<int>(key);
 					}
 			};
 			struct KeyInfo {
 				public:
 					KeyInfo() = default;
 					KeyInfo(int key, int repeat, int scanCode, bool pDown, bool ext) :
-						_key(key), _repeat(repeat), _scanCode(scanCode), _pDown(pDown), _ext(ext)
+						Key(key), RepeatCount(repeat), ScanCode(scanCode), IsExtendedKey(ext), PreviousState(pDown)
 					{
 					}
-					KeyInfo(WPARAM wParam, LPARAM lParam) : _key(wParam) {
-						_repeat = lParam & 0xFFFF;
-						_scanCode = (lParam & 0xFF0000)>>16;
-						_ext = lParam & 0x1000000;
-						_pDown = lParam & 0x40000000;
+					KeyInfo(WPARAM wParam, LPARAM lParam) :
+						Key(wParam),
+						RepeatCount(lParam & 0xFFFF),
+						ScanCode((lParam & 0xFF0000) >> 16),
+						IsExtendedKey(lParam & 0x10000000),
+						PreviousState(lParam & 0x40000000)
+					{
 					}
 
-					int GetKey() const {
-						return _key;
-					}
-					int GetRepeatCount() const {
-						return _repeat;
-					}
-					int ScanCode() const {
-						return _scanCode;
-					}
-					bool GetPreviousState() const {
-						return _pDown;
-					}
-					bool IsExtendedKey() const {
-						return _ext;
-					}
-				private:
-					int _key = 0, _repeat = 0, _scanCode = 0;
-					bool _pDown = false, _ext = false;
+					ReferenceProperty<int, PropertyType::ReadOnly> Key;
+					ReferenceProperty<size_t, PropertyType::ReadOnly> RepeatCount;
+					ReferenceProperty<int, PropertyType::ReadOnly> ScanCode;
+					ReferenceProperty<bool, PropertyType::ReadOnly> IsExtendedKey;
+					ReferenceProperty<bool, PropertyType::ReadOnly> PreviousState;
 			};
-			struct TextInfo { // TODO process lParam too
+			struct TextInfo {
 				public:
 					TextInfo() = default;
-					TextInfo(WPARAM wParam, LPARAM) : _c(wParam) {
+					TextInfo(WPARAM wParam, LPARAM lParam) :
+						Char(wParam),
+						RepeatCount(lParam & 0xFFFF),
+						AltDown(lParam & 0x20000000),
+						PreviousState(lParam & 0x40000000),
+						TransitionState(lParam & 0x80000000)
+					{
 					}
 
-					wchar_t GetChar() const {
-						return _c;
-					}
-				private:
-					wchar_t _c = 0;
+					ReferenceProperty<wchar_t, PropertyType::ReadOnly> Char;
+					ReferenceProperty<size_t, PropertyType::ReadOnly> RepeatCount;
+					ReferenceProperty<bool, PropertyType::ReadOnly> AltDown;
+					ReferenceProperty<bool, PropertyType::ReadOnly> PreviousState;
+					ReferenceProperty<bool, PropertyType::ReadOnly> TransitionState;
 			};
 
 			enum class DefaultCursorType : size_t {
@@ -259,12 +242,12 @@ namespace DE {
 						MouseMove(info);
 					}
 					virtual bool OnMouseDown(const MouseButtonInfo &info) {
-						_keys |= GetButtonBit(info.Button);
+						_keys |= static_cast<int>(*info.Button);
 						MouseDown(info);
 						return false;
 					}
 					virtual void OnMouseUp(const MouseButtonInfo &info) {
-						int bit = GetButtonBit(info.Button);
+						int bit = static_cast<int>(*info.Button);
 						if (_keys & bit) {
 							_keys &= (~bit);
 							MouseUp(info);

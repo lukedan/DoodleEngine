@@ -62,13 +62,13 @@ namespace DE {
 				}
 				virtual void OnKeyDown(const Core::Input::KeyInfo &info) override {
 					ContentControl<T>::OnKeyDown(info);
-					if (info.GetKey() == VK_SPACE) {
+					if (info.Key == VK_SPACE) {
 						_state = (ButtonState)((int)_state | (int)ButtonState::KeyboardPressed);
 					}
 				}
 				virtual void OnKeyUp(const Core::Input::KeyInfo &info) override {
 					ContentControl<T>::OnKeyUp(info);
-					if (info.GetKey() == VK_SPACE) {
+					if (info.Key == VK_SPACE) {
 						_state = (ButtonState)((int)_state & (~(int)ButtonState::KeyboardPressed));
 						OnClick(Core::Info());
 					}

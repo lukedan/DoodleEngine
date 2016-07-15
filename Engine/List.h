@@ -493,9 +493,6 @@ namespace DE {
 						}
 
 						size_t Count = 0, Capicy = MinCapicy;
-#ifdef DEBUG
-						Core::MemoryMarker<30> _marker{"ListData inner object"};
-#endif
 
 						T *GetArray() {
 							return reinterpret_cast<T*>(this + 1);

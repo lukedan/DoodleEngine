@@ -86,7 +86,7 @@ namespace DE {
 					RemoveHandler(tok._data);
 				}
 
-				void operator ()(const T &info) { // TODO
+				void operator ()(const T &info) {
 					for (typename decltype(_hands)::Node *n = _hands.First(); n; n = n->Next()) {
 						n->Data().Func(info);
 					}
