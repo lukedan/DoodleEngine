@@ -70,7 +70,11 @@ namespace DE {
 					virtual void SetViewbox(const Core::Math::Rectangle &box) override {
 						AssertGLSuccess(glMatrixMode(GL_PROJECTION), "cannot set matrix mode");
 						AssertGLSuccess(glLoadIdentity(), "cannot load identity matrix");
-						AssertGLSuccess(glOrtho(box.Left, box.Right, box.Bottom, box.Top, -1, 1), "cannot set ortho");
+						if (_inbuf) {
+							AssertGLSuccess(glOrtho(box.Left, box.Right, box.Top, box.Bottom, -1, 1), "cannot set ortho");
+						} else {
+							AssertGLSuccess(glOrtho(box.Left, box.Right, box.Bottom, box.Top, -1, 1), "cannot set ortho");
+						}
 						AssertGLSuccess(glMatrixMode(GL_MODELVIEW), "cannot set matrix mode");
 						AssertGLSuccess(glLoadIdentity(), "cannot load identity matrix");
 					}
@@ -82,6 +86,20 @@ namespace DE {
 						AssertGLSuccess(glGetFloatv(GL_COLOR_BUFFER_BIT, d), "cannot get current color");
 						return Core::Color::FromFloats(d[0], d[1], d[2], d[3]);
 					}
+
+					virtual void SetStencilFunction(StencilComparisonFunction func, unsigned ref, unsigned mask) {
+						AssertGLSuccess(glStencilFunc(GetStencilComparisonID(func), ref, mask), "cannot set stencil function");
+					}
+					virtual void SetStencilOperation(StencilOperation fail, StencilOperation zfail, StencilOperation zpass) {
+						AssertGLSuccess(glStencilOp(GetStencilOperationID(fail), GetStencilOperationID(zfail), GetStencilOperationID(zpass)), "cannot set stencil operation");
+					}
+					virtual void SetClearStencilValue(unsigned val) {
+						AssertGLSuccess(glClearStencil(val), "cannot set stencil clear value");
+					}
+					virtual void ClearStencil() {
+						AssertGLSuccess(glClear(GL_STENCIL_BUFFER_BIT), "cannot clear stencil buffer");
+					}
+
 					virtual void SetPointSize(double size) override {
 						AssertGLSuccess(glPointSize(size), "cannot set point size");
 					}
@@ -265,12 +283,14 @@ namespace DE {
 						AssertGLSuccess(glClearColor(0.0, 0.0, 0.0, 0.0), "cannot set clear color");
 						AssertGLSuccess(glClear(GL_COLOR_BUFFER_BIT), "cannot clear the buffer");
 						AssertGLSuccess(glViewport(0.0, 0.0, fbi.Region.Width(), fbi.Region.Height()), "cannot set viewport");
+						_inbuf = true;
 #endif
 					}
 					virtual void BackToDefaultFrameBuffer() override {
 #ifndef DE_NO_GLEW
 						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0), "cannot bind the frame buffer");
 						AssertGLSuccess(glViewport(_fvp.Left, _fvp.Top, _fvp.Width(), _fvp.Height()), "cannot set viewport");
+						_inbuf = false;
 #endif
 					}
 					virtual void DeleteFrameBuffer(const FrameBufferInfo &fbi) override {
@@ -350,6 +370,7 @@ namespace DE {
 				    HWND _hWnd;
 				    Core::Color _bkg;
 				    Core::Math::Rectangle _vp, _fvp;
+				    bool _inbuf = false;
 
 				    static GLContext *&GetCurrentContext();
 
@@ -444,6 +465,68 @@ namespace DE {
 							}
 							default: {
 								return TextureWrap::None;
+							}
+						}
+					}
+					inline static GLenum GetStencilComparisonID(StencilComparisonFunction func) {
+						switch (func) {
+							case StencilComparisonFunction::Always: {
+								return GL_ALWAYS;
+							}
+							case StencilComparisonFunction::Equal: {
+								return GL_EQUAL;
+							}
+							case StencilComparisonFunction::Greater: {
+								return GL_GREATER;
+							}
+							case StencilComparisonFunction::GreaterOrEqual: {
+								return GL_GEQUAL;
+							}
+							case StencilComparisonFunction::Less: {
+								return GL_LESS;
+							}
+							case StencilComparisonFunction::LessOrEqual: {
+								return GL_LEQUAL;
+							}
+							case StencilComparisonFunction::Never: {
+								return GL_NEVER;
+							}
+							case StencilComparisonFunction::NotEqual: {
+								return GL_NOTEQUAL;
+							}
+							default: {
+								return GL_ALWAYS;
+							}
+						}
+					}
+					inline static GLenum GetStencilOperationID(StencilOperation op) {
+						switch (op) {
+							case StencilOperation::BitwiseInvert: {
+								return GL_INVERT;
+							}
+							case StencilOperation::ClampedDecrease: {
+								return GL_DECR;
+							}
+							case StencilOperation::ClampedIncrease: {
+								return GL_INCR;
+							}
+							case StencilOperation::Keep: {
+								return GL_KEEP;
+							}
+							case StencilOperation::Replace: {
+								return GL_REPLACE;
+							}
+							case StencilOperation::WrappedDecrease: {
+								return GL_DECR_WRAP;
+							}
+							case StencilOperation::WrappedIncrease: {
+								return GL_INCR_WRAP;
+							}
+							case StencilOperation::Zero: {
+								return GL_ZERO;
+							}
+							default: {
+								return GL_KEEP;
 							}
 						}
 					}

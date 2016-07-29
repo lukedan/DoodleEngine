@@ -26,8 +26,8 @@ namespace DE {
 					PFD_SUPPORT_OPENGL |
 					PFD_DOUBLEBUFFER;
 				pfd.iPixelType = PFD_TYPE_RGBA;
-				pfd.cColorBits = 24;
-				pfd.cDepthBits = 16;
+				pfd.cColorBits = 32;
+				pfd.cStencilBits = 8;
 				pfd.iLayerType = PFD_MAIN_PLANE;
 				iFormat = ChoosePixelFormat(_hDC, &pfd);
 				SetPixelFormat(_hDC, iFormat, &pfd);
@@ -45,11 +45,12 @@ namespace DE {
 				AssertGLSuccess(glEnable(GL_BLEND), "cannot enable blend");
 				AssertGLSuccess(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA), "cannot set blend function");
 				AssertGLSuccess(glEnable(GL_TEXTURE_2D), "cannot enable textures");
-				//AssertGLSuccess(glEnable(GL_STENCIL_TEST), "cannot enable masking");
-				//AssertGLSuccess(glClearStencil(1), "cannot initialize masking");
+				AssertGLSuccess(glEnable(GL_STENCIL_TEST), "cannot enable masking");
+				AssertGLSuccess(glClearStencil(0), "cannot initialize masking");
 				AssertGLSuccess(glEnableClientState(GL_VERTEX_ARRAY), "cannot enable vertex array");
 				AssertGLSuccess(glEnableClientState(GL_TEXTURE_COORD_ARRAY), "cannot enable UV array");
 				AssertGLSuccess(glEnableClientState(GL_COLOR_ARRAY), "cannot enable color array");
+
 				AssertGLSuccess(glEnable(GL_POINT_SMOOTH), "cannot enable anti-alias");
 				AssertGLSuccess(glHint(GL_POINT_SMOOTH_HINT, GL_NICEST), "cannot enable anti-alias");
 				AssertGLSuccess(glEnable(GL_LINE_SMOOTH), "cannot enable anti-alias");

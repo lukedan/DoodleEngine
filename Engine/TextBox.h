@@ -6,7 +6,6 @@
 
 namespace DE {
 	namespace UI {
-		// testing
 		template <typename T = Graphics::TextRendering::BasicText> class TextBox : public ScrollViewBase {
 			protected:
 				enum class CaretMoveType {

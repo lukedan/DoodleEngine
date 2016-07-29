@@ -128,6 +128,11 @@ namespace DE {
 				void SetLineWidth(double);
 				void SetPointSize(double);
 
+				void SetStencilFunction(StencilComparisonFunction, unsigned, unsigned);
+				void SetStencilOperation(StencilOperation, StencilOperation, StencilOperation);
+				void SetClearStencilValue(unsigned);
+				void ClearStencil();
+
 				RenderingTarget GetRenderingTarget() const;
 
 				Renderer &PushRectangularClip(const Core::Math::Rectangle&);

@@ -1989,12 +1989,105 @@ class PhysicsTest : public Test {
 		}
 };
 
+class TriangulationTest : public Test {
+	public:
+		const Vector2 ScreenSize {1024.0, 768.0};
+
+		TriangulationTest() : Test() {
+			window.ClientSize = ScreenSize;
+			window.PutToCenter();
+			r.SetViewport(ScreenSize);
+			r.SetViewbox(ScreenSize);
+			r.SetBackground(Color(0, 0, 0, 255));
+
+			window.MouseDown += [&](const MouseButtonInfo &info) {
+				for (size_t i = 0; i < vxs.Count(); ++i) {
+					if ((vxs[i] - info.Position).LengthSquared() < 100.0) {
+						drag = i;
+						lastpos = info.Position;
+						dragging = true;
+						break;
+					}
+				}
+			};
+			window.MouseMove += [&](const MouseMoveInfo &info) {
+				if (dragging) {
+					Vector2 diff = info.Position - lastpos;
+					vxs[drag] += diff;
+					lastpos = info.Position;
+				}
+			};
+
+			Random rnd;
+			for (size_t i = 0; i < 10; ++i) {
+				vxs.PushBack(Vector2(round(rnd.NextDouble() * ScreenSize.X), round(rnd.NextDouble() * ScreenSize.Y)));
+			}
+		}
+
+		void Update(double) override {
+			if (dragging && !IsKeyDown(VK_LBUTTON)) {
+				dragging = false;
+			}
+		}
+		void Render() override {
+			r.Begin();
+
+			List<Vertex> rvxs;
+
+			List<Vertex> posv, negv;
+			Vector2 v1 = vxs[0], v2 = vxs[1], v3 = vxs[2];
+			for (size_t i = 2; i < vxs.Count(); ++i) {
+				v2 = vxs[i - 1];
+				v3 = vxs[i];
+				if (Vector2::Cross(v2 - v1, v3 - v1) > 0.0) {
+					posv.PushBack(Vertex(v1));
+					posv.PushBack(Vertex(v2));
+					posv.PushBack(Vertex(v3));
+				} else {
+					negv.PushBack(Vertex(v1));
+					negv.PushBack(Vertex(v2));
+					negv.PushBack(Vertex(v3));
+				}
+			}
+			r.SetStencilFunction(StencilComparisonFunction::Never, 0, 0xFF);
+			r.SetStencilOperation(StencilOperation::WrappedIncrease, StencilOperation::WrappedIncrease, StencilOperation::WrappedIncrease);
+			r.DrawVertices(posv, RenderMode::Triangles);
+			r.SetStencilOperation(StencilOperation::WrappedDecrease, StencilOperation::WrappedDecrease, StencilOperation::WrappedDecrease);
+			r.DrawVertices(negv, RenderMode::Triangles);
+
+			rvxs.Clear();
+			rvxs.PushBack(Vertex(Vector2(0.0, 0.0), Color(255, 255, 0, 100)));
+			rvxs.PushBack(Vertex(Vector2(ScreenSize.X, 0.0), Color(255, 255, 0, 100)));
+			rvxs.PushBack(Vertex(Vector2(0.0, ScreenSize.Y), Color(255, 255, 0, 100)));
+			rvxs.PushBack(Vertex(ScreenSize, Color(255, 255, 0, 100)));
+			r.SetStencilFunction(StencilComparisonFunction::NotEqual, 0, 0xFF);
+			r.DrawVertices(rvxs, RenderMode::TriangleStrip);
+
+			r.SetStencilFunction(StencilComparisonFunction::Always, 0, 0xFF);
+			rvxs.Clear();
+			vxs.ForEach([&](const Vector2 &v) {
+				rvxs.PushBack(Vertex(v, Color(255, 0, 0, 255)));
+				return true;
+			});
+			rvxs.PushBack(Vertex(vxs[0], Color(255, 0, 0, 255)));
+			r.DrawVertices(rvxs, RenderMode::LineStrip);
+
+			r.End();
+		}
+
+		List<Vector2> vxs;
+		bool dragging = false;
+		size_t drag = 0;
+		Vector2 lastpos;
+};
+
 int main() {
 	{
 		try {
-			ControlTest pl;
+//			ControlTest pl;
 //			LightTest pl;
 //			PhysicsTest pl;
+			TriangulationTest pl;
 			pl.Run();
 		} catch (Exception &e) {
 			ShowMessage(e.Message());

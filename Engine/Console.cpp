@@ -68,7 +68,7 @@ namespace DE {
 					_curCommand->OnInput(str);
 				}
 			} else {
-				SetCursorColor(Core::Color(255, 255, 255, 255));
+				SetCursorColor(DefaultColor);
 				if (EchoCommand) {
 					if (_father->OutputTextBox().GetCursorX() > 0) {
 						WriteLine(_TEXT(""));
@@ -96,6 +96,7 @@ namespace DE {
 				if (exec == nullptr) {
 					SetCursorColor(Core::Color(255, 0, 0, 255));
 					WriteLine(_TEXT("No such command: ") + parsed[0]);
+					SetCursorColor(DefaultColor);
 					return;
 				}
 				_curCommand = exec->GetExecutable()(parsed);

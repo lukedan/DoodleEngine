@@ -36,6 +36,7 @@ namespace DE {
 			Core::Color Color;
 			Core::Math::Vector2 UV;
 		};
+
 		enum class RenderMode {
 			Triangles,
 			TriangleStrip,
@@ -54,6 +55,27 @@ namespace DE {
 			GLSLVertex,
 			HLSL
 		};
+		enum class StencilComparisonFunction {
+			Never,
+			Always,
+			Equal,
+			NotEqual,
+			Less,
+			LessOrEqual,
+			Greater,
+			GreaterOrEqual
+		};
+		enum class StencilOperation {
+			Keep,
+			Zero,
+			Replace,
+			ClampedIncrease,
+			ClampedDecrease,
+			WrappedIncrease,
+			WrappedDecrease,
+			BitwiseInvert
+		};
+
 		union TextureInfo {
 			GLuint GLID;
 		};
@@ -81,11 +103,19 @@ namespace DE {
 					virtual void SetViewbox(const Core::Math::Rectangle&) = 0;
 					virtual void SetBackground(const Core::Color&) = 0;
 					virtual Core::Color GetBackground() const = 0;
+					virtual Gdiplus::Bitmap *GetScreenShot(const Core::Math::Rectangle&) = 0;
+
+					// NOTE the opengl specification is partly int and partly unsigned... whatever
+					// TODO Get functions
+					virtual void SetStencilFunction(StencilComparisonFunction, unsigned, unsigned) = 0;
+					virtual void SetStencilOperation(StencilOperation, StencilOperation, StencilOperation) = 0;
+					virtual void SetClearStencilValue(unsigned) = 0;
+					virtual void ClearStencil() = 0;
+
 					virtual void SetPointSize(double) = 0;
 					virtual double GetPointSize() const = 0;
 					virtual void SetLineWidth(double) = 0;
 					virtual double GetLineWidth() const = 0;
-					virtual Gdiplus::Bitmap *GetScreenShot(const Core::Math::Rectangle&) = 0;
 
 					virtual TextureInfo LoadTextureFromBitmap(Gdiplus::Bitmap&) = 0;
 					virtual void DeleteTexture(TextureInfo) = 0;

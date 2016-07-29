@@ -143,6 +143,34 @@ namespace DE {
 					}
 					return result;
 				}
+				StringBase Trim() const {
+					StringBase result;
+					const std::ctype<Char> &facet = std::use_facet<std::ctype<Char>>(std::locale());
+					size_t l = 0, r = Length();
+					for (; l < Length() && facet.is(std::ctype<Char>::space, At(l)); ++l) {
+					}
+					for (; r > 0 && facet.is(std::ctype<Char>::space, At(r - 1)); --r) {
+					}
+					if (l < r) {
+						return SubString(l, r - l);
+					}
+					return StringBase();
+				}
+				StringBase TrimLeft() const {
+					const std::ctype<Char> &facet = std::use_facet<std::ctype<Char>>(std::locale());
+					size_t i = 0;
+					for (; i < Length() && facet.is(std::ctype<Char>::space, At(i)); ++i) {
+					}
+					return SubString(i);
+				}
+				StringBase TrimRight() const {
+					StringBase result = *this;
+					const std::ctype<Char> &facet = std::use_facet<std::ctype<Char>>(std::locale());
+					while (result.Length() > 0 && facet.is(std::ctype<Char>::space, result.Last())) {
+						result.PopBack();
+					}
+					return result;
+				}
 
 				size_t Length() const {
 					return Base::Count() - 1;

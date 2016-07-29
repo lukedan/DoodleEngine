@@ -434,6 +434,27 @@ namespace DE {
 			return TextureWrap::None;
 		}
 
+		void Renderer::SetStencilFunction(StencilComparisonFunction func, unsigned ref, unsigned mask) {
+			if (context) {
+				context->SetStencilFunction(func, ref, mask);
+			}
+		}
+		void Renderer::SetStencilOperation(StencilOperation fail, StencilOperation zfail, StencilOperation zpass) {
+			if (context) {
+				context->SetStencilOperation(fail, zfail, zpass);
+			}
+		}
+		void Renderer::SetClearStencilValue(unsigned v) {
+			if (context) {
+				context->SetClearStencilValue(v);
+			}
+		}
+		void Renderer::ClearStencil() {
+			if (context) {
+				context->ClearStencil();
+			}
+		}
+
 
 		Renderer &Renderer::DrawVertices(const Vertex *vs, size_t count, RenderMode mode) {
 			if (context) {

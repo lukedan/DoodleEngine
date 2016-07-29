@@ -452,6 +452,7 @@ namespace DE {
 				}
 
 				Core::ReferenceProperty<bool> EchoCommand {true};
+				Core::ReferenceProperty<Core::Color> DefaultColor;
 			protected:
 				Core::Collections::SortedList<Command, CommandComparer> _commands;
 				RunningCommand *_curCommand = nullptr;
@@ -477,6 +478,7 @@ namespace DE {
 								if (_curCommand->GetReturnValue() != 0) {
 									SetCursorColor(Core::Color(255, 0, 0, 255));
 									WriteLine(_TEXT("Command terminated with return value ") + Core::ToString(_curCommand->GetReturnValue()));
+									SetCursorColor(DefaultColor);
 								}
 								_curCommand->~RunningCommand();
 								Core::GlobalAllocator::Free(_curCommand);
