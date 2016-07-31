@@ -61,7 +61,7 @@ namespace DE {
 
     				virtual const CharData &GetData(TCHAR) const = 0;
     				virtual const AtlasTexture &GetTextureInfo(TCHAR) const = 0;
-    				virtual const Texture &GetTexture(size_t) const = 0;
+    				virtual const TextureID &GetTexture(size_t) const = 0;
     				virtual bool HasData(TCHAR c) const = 0;
     				virtual double GetHeight() const {
     					return _height;

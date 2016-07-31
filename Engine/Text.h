@@ -189,6 +189,7 @@ namespace DE {
 						Scale,
 						Font,
 						Color,
+						RoundToInteger,
 						LocalVerticalPosition
 					};
 					union ChangeParameters {
@@ -198,6 +199,7 @@ namespace DE {
 						struct {
 							unsigned char R, G, B, A;
 						} NewColor;
+						bool RoundToInteger;
 					};
 					struct ChangeInfo {
 						ChangeInfo() = default;
@@ -213,6 +215,7 @@ namespace DE {
 						double Scale = 1.0, LocalVerticalPosition = 0.5;
 						const Font *Font = nullptr;
 						Core::Color Color;
+						bool RoundToInteger = true;
 
 						void ApplyChange(const ChangeInfo &change) {
 							switch (change.Type) {
@@ -235,6 +238,10 @@ namespace DE {
 								}
 								case ChangeType::LocalVerticalPosition: {
 									LocalVerticalPosition = change.Parameters.LocalVerticalPosition;
+									break;
+								}
+								case ChangeType::RoundToInteger: {
+									RoundToInteger = change.Parameters.RoundToInteger;
 									break;
 								}
 								default: {
@@ -284,6 +291,12 @@ namespace DE {
 					StreamedRichText &AppendLocalVerticalPositionChange(double vpos) {
 						ChangeInfo ci(Content.Length(), ChangeType::LocalVerticalPosition);
 						ci.Parameters.LocalVerticalPosition = vpos;
+						Changes.PushBack(ci);
+						return *this;
+					}
+					StreamedRichText &AppendRoundToIntegerChange(bool rti) {
+						ChangeInfo ci(Content.Length(), ChangeType::RoundToInteger);
+						ci.Parameters.RoundToInteger = rti;
 						Changes.PushBack(ci);
 						return *this;
 					}
@@ -406,6 +419,29 @@ namespace DE {
 						return txt.AppendLocalVerticalPositionChange(lvp.LocalVerticalPosition);
 					}
 					double LocalVerticalPosition;
+				};
+				struct NewRoundToInteger {
+					explicit NewRoundToInteger(bool v) : RoundToInteger(v) {
+					}
+					NewRoundToInteger(const NewRoundToInteger&) = delete;
+					friend StreamedRichText &operator <<(StreamedRichText &txt, const NewRoundToInteger &rnd) {
+						return txt.AppendRoundToIntegerChange(rnd.RoundToInteger);
+					}
+					bool RoundToInteger;
+				};
+				struct UseRoundToInteger {
+					UseRoundToInteger() = default;
+					UseRoundToInteger(const UseRoundToInteger&) = delete;
+					friend StreamedRichText &operator <<(StreamedRichText &txt, const UseRoundToInteger&) {
+						return txt.AppendRoundToIntegerChange(true);
+					}
+				};
+				struct NoRoundToInteger {
+					NoRoundToInteger() = default;
+					NoRoundToInteger(const NoRoundToInteger&) = delete;
+					friend StreamedRichText &operator <<(StreamedRichText &txt, const NoRoundToInteger&) {
+						return txt.AppendRoundToIntegerChange(false);
+					}
 				};
 			}
 		}

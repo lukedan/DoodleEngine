@@ -33,11 +33,6 @@ namespace DE {
             private:
                 double s;
 	    };
-		enum class TextAlignment {
-			Left = Gdiplus::StringAlignmentNear,
-			Right = Gdiplus::StringAlignmentFar,
-			Center = Gdiplus::StringAlignmentCenter
-		};
 		class GdiPlusAccess {
 #define AssertGDIPlusSuccess(OP, MSG) \
 	if ((OP) != ::Gdiplus::Ok) { \
@@ -61,21 +56,6 @@ namespace DE {
 				static Initializer _initObj;
 		};
 
-		class Renderer;
-		struct Texture {
-				friend class Renderer;
-			public:
-				Texture() {
-					memset(&_id, 0, sizeof(_id));
-				}
-
-				TextureInfo GetID() const {
-					return _id;
-				}
-			private:
-				TextureInfo _id;
-		};
-
 		class Renderer {
 				friend class RenderingContexts::RenderingContext;
 				friend class RenderingContexts::GLContext;
@@ -83,102 +63,181 @@ namespace DE {
 			public:
 				Renderer() = default;
 
-				void Begin();
+				void Begin() {
+					if (_ctx) {
+						_ctx->Begin();
+					}
+				}
 				void SetViewport(const Core::Math::Rectangle&);
-				void SetViewbox(const Core::Math::Rectangle&);
-				void SetBackground(const Core::Color&);
-				void End();
+				void SetViewbox(const Core::Math::Rectangle &box) {
+					if (_ctx) {
+						_ctx->SetViewbox(box);
+					}
+				}
+				void SetBackground(const Core::Color &back) {
+					if (_ctx) {
+						_ctx->SetBackground(back);
+					}
+				}
+				void End() {
+					if (_ctx) {
+						_ctx->End();
+					}
+				}
 
 				operator bool() const {
-					return context != nullptr;
+					return _ctx != nullptr;
 				}
 
-				Texture LoadTextureFromFile(const Core::String&);
-				Texture LoadTextureFromBitmap(Gdiplus::Bitmap&);
-				Texture LoadTextureFromText(
-					const Core::String&,
-					const Core::String&,
-					double,
-					TextAlignment = TextAlignment::Left,
-					double = 0.0
-				);
-				void UnloadTexture(const Texture&);
-				Gdiplus::Bitmap *GetTextureImage(const Texture&);
-				void SetTextureImage(const Texture&, Gdiplus::Bitmap&);
-				void SetTexture(const Texture&);
+				TextureID LoadTextureFromFile(const Core::String &fileName) {
+					Gdiplus::Bitmap b(*fileName);
+					return LoadTextureFromBitmap(b);
+				}
+				TextureID LoadTextureFromBitmap(Gdiplus::Bitmap &bmp) {
+					if (_ctx) {
+						return _ctx->LoadTextureFromBitmap(bmp);
+					}
+					return TextureID();
+				}
+				void UnloadTexture(const TextureID &tex) {
+					if (_ctx) {
+						_ctx->DeleteTexture(tex);
+					}
+				}
+				Gdiplus::Bitmap *GetTextureImage(const TextureID &tex) {
+					if (_ctx) {
+						return _ctx->GetTextureImage(tex);
+					}
+					return nullptr;
+				}
+				void SetTextureImage(const TextureID &tex, Gdiplus::Bitmap &bmp) {
+					if (_ctx) {
+						TextureID curTex = _ctx->GetBoundTexture();
+						_ctx->SetTextureImage(tex, bmp);
+						_ctx->BindTexture(curTex);
+					}
+				}
+				void BindTexture(const TextureID &tex) {
+					if (_ctx) {
+						_ctx->BindTexture(tex);
+					}
+				}
 
 				RenderingContexts::RenderingContext *GetContext() {
-					return context;
+					return _ctx;
 				}
 
-				Renderer &operator <<(const Core::Color&);
-				Renderer &operator <<(const Core::Math::Vector2&);
-				Renderer &operator <<(const Texture&);
-				Renderer &operator <<(const Core::Math::Rectangle&);
-				Renderer &operator <<(RenderingTarget);
-
-				Renderer &operator <<(const LineWidth &width) {
-					SetLineWidth(width.w);
-					return *this;
+				void SetLineWidth(double width) {
+					if (_ctx) {
+						_ctx->SetLineWidth(width);
+					}
 				}
-				Renderer &operator <<(const PointSize &size) {
-					SetPointSize(size.s);
-					return *this;
+				void SetPointSize(double size) {
+					if (_ctx) {
+						_ctx->SetPointSize(size);
+					}
 				}
-				void SetLineWidth(double);
-				void SetPointSize(double);
 
-				void SetStencilFunction(StencilComparisonFunction, unsigned, unsigned);
-				void SetStencilOperation(StencilOperation, StencilOperation, StencilOperation);
-				void SetClearStencilValue(unsigned);
-				void ClearStencil();
+				void SetStencilFunction(StencilComparisonFunction func, unsigned ref, unsigned mask) {
+					if (_ctx) {
+						_ctx->SetStencilFunction(func, ref, mask);
+					}
+				}
+				void SetStencilOperation(StencilOperation fail, StencilOperation zfail, StencilOperation zpass) {
+					if (_ctx) {
+						_ctx->SetStencilOperation(fail, zfail, zpass);
+					}
+				}
+				void SetClearStencilValue(unsigned v) {
+					if (_ctx) {
+						_ctx->SetClearStencilValue(v);
+					}
+				}
+				void ClearStencil() {
+					if (_ctx) {
+						_ctx->ClearStencil();
+					}
+				}
 
 				RenderingTarget GetRenderingTarget() const;
 
-				Renderer &PushRectangularClip(const Core::Math::Rectangle&);
-				Renderer &PopRectangularClip();
+				void PushRectangularClip(const Core::Math::Rectangle &rect) {
+					if (_ctx) {
+						_ctx->PushRectangularClip(rect);
+					}
+				}
+				void PopRectangularClip() {
+					if (_ctx) {
+						_ctx->PopRectangularClip();
+					}
+				}
 
-				Renderer &PushBackRect(Core::Collections::List<Vertex>&, const Core::Math::Rectangle&);
-				Renderer &PushBackRect(
-					Core::Collections::List<Vertex>&,
-					const Core::Math::Rectangle&,
-					const Core::Math::Rectangle&
-				);
-				Renderer &PushBackRect(
-					Core::Collections::List<Vertex>&,
-					const Core::Math::Rectangle&,
-					const Core::Math::Rectangle&,
-					const Core::Color&,
-					const Core::Color&,
-					const Core::Color&,
-					const Core::Color&
-				);
+				void SetVerticalTextureWrap(TextureWrap wrap) {
+					if (_ctx) {
+						_ctx->SetVerticalTextureWrap(wrap);
+					}
+				}
+				void SetHorizontalTextureWrap(TextureWrap wrap) {
+					if (_ctx) {
+						_ctx->SetHorizontalTextureWrap(wrap);
+					}
+				}
+				TextureWrap GetVerticalTextureWrap() const {
+					if (_ctx) {
+						return _ctx->GetVerticalTextureWrap();
+					}
+					return TextureWrap::None;
+				}
+				TextureWrap GetHorizontalTextureWrap() const {
+					if (_ctx) {
+						return _ctx->GetHorizontalTextureWrap();
+					}
+					return TextureWrap::None;
+				}
 
-				Renderer &SetVerticalTextureWrap(TextureWrap);
-				Renderer &SetHorizontalTextureWrap(TextureWrap);
-				TextureWrap GetVerticalTextureWrap() const;
-				TextureWrap GetHorizontalTextureWrap() const;
+				FrameBuffer CreateFrameBuffer(const Core::Math::Rectangle &rect) {
+					if (_ctx) {
+						return _ctx->CreateFrameBuffer(rect);
+					}
+					return FrameBuffer();
+				}
+				void BeginFrameBuffer(const FrameBuffer &buf) {
+					if (_ctx) {
+						_ctx->BeginFrameBuffer(buf);
+					}
+				}
+				void BackToDefaultFrameBuffer() {
+					if (_ctx) {
+						_ctx->BackToDefaultFrameBuffer();
+					}
+				}
+				void DeleteFrameBuffer(const FrameBuffer &buf) {
+					if (_ctx) {
+						_ctx->DeleteFrameBuffer(buf);
+					}
+				}
 
-				Renderer &DrawVertices(const Vertex*, size_t, RenderMode);
-				template <bool DMA> Renderer &DrawVertices(const Core::Collections::List<Vertex, DMA> &vxs, RenderMode mode) {
+				void DrawVertices(const Vertex *vs, size_t count, RenderMode mode) {
+					if (_ctx) {
+						_ctx->DrawVertices(vs, count, mode);
+					}
+				}
+				template <bool DMA> void DrawVertices(const Core::Collections::List<Vertex, DMA> &vxs, RenderMode mode) {
 					DrawVertices(*vxs, vxs.Count(), mode);
-					return *this;
 				}
 
-				Gdiplus::Bitmap *GetScreenShot(const Core::Math::Rectangle&);
+				Gdiplus::Bitmap *GetScreenShot(const Core::Math::Rectangle &rect) {
+					if (_ctx) {
+						return _ctx->GetScreenShot(rect);
+					}
+					return nullptr;
+				}
 
-				Core::Color &Color() {
-					return curClr;
-				}
-				const Core::Color &Color() const {
-					return curClr;
-				}
 			private:
-				Renderer(RenderingContexts::RenderingContext *c) : context(c), curClr() {
+				Renderer(RenderingContexts::RenderingContext *c) : _ctx(c) {
 				}
 
-                RenderingContexts::RenderingContext *context = nullptr;
-                Core::Color curClr;
+                RenderingContexts::RenderingContext *_ctx = nullptr;
 		};
 	}
 }

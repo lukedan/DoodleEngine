@@ -37,7 +37,7 @@ namespace DE {
 					v.PushBack(Vertex(rect.TopRight(), _color));
 					v.PushBack(Vertex(rect.BottomLeft(), _color));
 					v.PushBack(Vertex(rect.BottomRight(), _color));
-					r<<Texture();
+					r.BindTexture(TextureID());
 					r.DrawVertices(v, RenderMode::Triangles);
 				}
 			protected:
@@ -46,13 +46,13 @@ namespace DE {
 		class TextureBrush : public Brush {
 			public:
 				TextureBrush() = default;
-				explicit TextureBrush(const Texture &t) : _tex(t) {
+				explicit TextureBrush(const TextureID &t) : _tex(t) {
 				}
 
-				Texture &BrushTexture() {
+				TextureID &BrushTexture() {
 					return _tex;
 				}
-				const Texture &BrushTexture() const {
+				const TextureID &BrushTexture() const {
 					return _tex;
 				}
 
@@ -84,8 +84,9 @@ namespace DE {
 				}
 
 				virtual void FillRect(const Core::Math::Rectangle &rect, Renderer &renderer) const override {
-					renderer<<_tex;
-					renderer.SetHorizontalTextureWrap(_hor).SetVerticalTextureWrap(_ver);
+					renderer.BindTexture(_tex);
+					renderer.SetHorizontalTextureWrap(_hor);
+					renderer.SetVerticalTextureWrap(_ver);
 					Core::Collections::List<Vertex> vs;
 					vs.PushBack(Vertex(rect.TopLeft(), _color, _rgn.TopLeft()));
 					vs.PushBack(Vertex(rect.TopRight(), _color, _rgn.TopRight()));
@@ -96,7 +97,7 @@ namespace DE {
 					renderer.DrawVertices(vs, RenderMode::Triangles);
 				}
 			protected:
-				Texture _tex;
+				TextureID _tex;
 				Core::Color _color;
 				TextureWrap
 					_hor = TextureWrap::None,
@@ -135,7 +136,7 @@ namespace DE {
 						ps.PushBack(Vertex(v, _color));
 						return true;
 					});
-					r<<Texture();
+					r.BindTexture(TextureID());
 					r.SetLineWidth(_thickness);
 					r.DrawVertices(ps, RenderMode::Lines);
 				}
@@ -145,7 +146,7 @@ namespace DE {
 						ps.PushBack(Vertex(v, _color));
 						return true;
 					});
-					r<<Texture();
+					r.BindTexture(TextureID());
 					r.SetLineWidth(_thickness);
 					r.DrawVertices(ps, RenderMode::LineStrip);
 				}
@@ -156,7 +157,7 @@ namespace DE {
 					vs.PushBack(Vertex(rect.BottomRight(), _color));
 					vs.PushBack(Vertex(rect.BottomLeft(), _color));
 					vs.PushBack(Vertex(rect.TopLeft(), _color));
-					r<<Texture();
+					r.BindTexture(TextureID());
 					r.SetLineWidth(_thickness);
 					r.DrawVertices(vs, RenderMode::LineStrip);
 				}

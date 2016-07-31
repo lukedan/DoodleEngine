@@ -35,9 +35,9 @@ namespace DE {
 							if (!ptr || !(ptr->_ctx)) {
 								return;
 							}
-							const Core::Collections::List<Texture> &ltex = ptr->_texs;
+							const Core::Collections::List<TextureID> &ltex = ptr->_texs;
 							Renderer r = ptr->_ctx->CreateRenderer();
-							ltex.ForEach([&r](const Texture &tex) {
+							ltex.ForEach([&r](const TextureID &tex) {
 								r.UnloadTexture(tex);
 								return true;
 							});
@@ -49,7 +49,7 @@ namespace DE {
 				}
 				Atlas(
 					RenderingContexts::RenderingContext *cc,
-					const Core::Collections::List<Texture> &txs,
+					const Core::Collections::List<TextureID> &txs,
 					const Core::Collections::Dictionary<int, AtlasTexture> &ats
 				) : Atlas() {
 					_data.SetSharedPointer(new (Core::GlobalAllocator::Allocate(sizeof(AtlasData))) AtlasData());
@@ -81,7 +81,7 @@ namespace DE {
 						for (size_t i = 0; i < data._texs.Count(); ++i) {
 							Core::String name = imgName + _TEXT("_") + Core::ToString(i) + _TEXT(".png");
 							GdiPlusAccess::SaveBitmap(
-								*(data._ctx->GetTextureImage(data._texs[i].GetID())),
+								*(data._ctx->GetTextureImage(data._texs[i])),
 								*name,
 								Gdiplus::ImageFormatPNG
 							);
@@ -109,7 +109,7 @@ namespace DE {
 				) {
 					Atlas atl(
 						r.GetContext(),
-						Core::Collections::List<Texture>(),
+						Core::Collections::List<TextureID>(),
 						Core::Collections::Dictionary<int, AtlasTexture>()
 					);
 					size_t tCount = reader.ReadBinaryObject<size_t>();
@@ -136,13 +136,13 @@ namespace DE {
 					return _data != nullptr;
 				}
 
-				const Core::Collections::List<Texture> &Textures() const {
+				const Core::Collections::List<TextureID> &Textures() const {
 					if (!_data) {
 						throw Core::InvalidOperationException(_TEXT("the Atlas is empty"));
 					}
 					return _data->_texs;
 				}
-				Core::Collections::List<Texture> &Textures() {
+				Core::Collections::List<TextureID> &Textures() {
 					if (!_data) {
 						throw Core::InvalidOperationException(_TEXT("the Atlas is empty"));
 					}
@@ -189,7 +189,7 @@ namespace DE {
 				}
 			private:
 				struct AtlasData {
-					Core::Collections::List<Texture> _texs;
+					Core::Collections::List<TextureID> _texs;
 					Core::Collections::Dictionary<int, AtlasTexture> _ats;
 					RenderingContexts::RenderingContext *_ctx = nullptr;
 					std::function<void(int, void*)> _onDispose = nullptr;
@@ -251,7 +251,7 @@ namespace DE {
 				DynamicAtlas() = default;
 				explicit DynamicAtlas(RenderingContexts::RenderingContext *ctx) : TargetAtlas(Atlas(
 					ctx,
-					Core::Collections::List<Texture>(),
+					Core::Collections::List<TextureID>(),
 					Core::Collections::Dictionary<int, AtlasTexture>()
 				)) {
 				}
@@ -264,7 +264,7 @@ namespace DE {
 
 				void Flush() {
 					if (_needFlush) {
-						TargetAtlas->Context()->SetTextureImage(_tex.GetID(), *_curBmp);
+						TargetAtlas->Context()->SetTextureImage(_tex, *_curBmp);
 						_needFlush = false;
 					}
 				}
@@ -326,7 +326,7 @@ namespace DE {
 				Gdiplus::Graphics *_g = nullptr;
 				Core::Math::Vector2 _penPos;
 				double _mh = 0.0;
-				Graphics::Texture _tex;
+				Graphics::TextureID _tex;
 				bool _needFlush = false;
 
 				void CreateNewTexturePage() {

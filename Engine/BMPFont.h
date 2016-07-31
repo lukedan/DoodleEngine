@@ -69,7 +69,7 @@ namespace DE {
 					virtual const AtlasTexture &GetTextureInfo(TCHAR c) const override {
 						return _al[c];
 					}
-					virtual const Texture &GetTexture(size_t p) const override {
+					virtual const TextureID &GetTexture(size_t p) const override {
 						return _al.Textures()[p];
 					}
 					virtual bool HasData(TCHAR c) const override {

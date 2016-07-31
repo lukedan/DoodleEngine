@@ -117,7 +117,7 @@ namespace DE {
 						return width;
 					}
 
-					virtual TextureInfo LoadTextureFromBitmap(Gdiplus::Bitmap &bmp) override {
+					virtual TextureID LoadTextureFromBitmap(Gdiplus::Bitmap &bmp) override {
 						MakeCurrent();
 						UINT w = bmp.GetWidth(), h = bmp.GetHeight();
 						if (w == 0 || h == 0) {
@@ -126,10 +126,10 @@ namespace DE {
 						Gdiplus::Rect r(0, 0, w, h);
 						Gdiplus::BitmapData data;
 						ZeroMemory(&data, sizeof(data));
-						TextureInfo id;
+						TextureID id;
 						AssertGDIPlusSuccess(bmp.LockBits(&r, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data), "cannot lock the bitmap");
-						AssertGLSuccess(glGenTextures(1, &id.GLID), "cannot generate a texture");
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id.GLID), "cannot bind the texture");
+						AssertGLSuccess(glGenTextures(1, &id._id.GLID), "cannot generate a texture");
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id._id.GLID), "cannot bind the texture");
 						AssertGLSuccess(glPixelStorei(GL_UNPACK_ALIGNMENT, 4), "cannot set pixel storage");
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT), "cannot set texture parameters");
@@ -141,39 +141,39 @@ namespace DE {
 						AssertGDIPlusSuccess(bmp.UnlockBits(&data), "cannot unlock the bitmap");
 						return id;
 					}
-					virtual void DeleteTexture(TextureInfo id) override {
+					virtual void DeleteTexture(TextureID id) override {
 						MakeCurrent();
-						AssertGLSuccess(glDeleteTextures(1, &id.GLID), "cannot delete the texture");
+						AssertGLSuccess(glDeleteTextures(1, &id._id.GLID), "cannot delete the texture");
 					}
-					virtual void BindTexture(TextureInfo id) override {
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id.GLID), "cannot bind the texture");
+					virtual void BindTexture(TextureID id) override {
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id._id.GLID), "cannot bind the texture");
 					}
 					virtual void UnbindTexture() override {
 						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, 0), "cannot unbind the texture");
 					}
-					virtual TextureInfo GetBoundTexture() const override {
+					virtual TextureID GetBoundTexture() const override {
 						int id;
 						AssertGLSuccess(glGetIntegerv(GL_TEXTURE_2D, &id), "cannot get texture index");
-						TextureInfo tex;
-						tex.GLID = id;
+						TextureID tex;
+						tex._id.GLID = id;
 						return tex;
 					}
-					virtual double GetTextureHeight(TextureInfo id) const override {
+					virtual double GetTextureHeight(TextureID id) const override {
 						MakeCurrent();
-						TextureInfo lTex = GetBoundTexture();
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id.GLID), "cannot bind the texture");
+						TextureID lTex = GetBoundTexture();
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id._id.GLID), "cannot bind the texture");
 						int h;
 						AssertGLSuccess(glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h), "cannot get texture height");
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, lTex.GLID), "cannot bind the texture");
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, lTex._id.GLID), "cannot bind the texture");
 						return h;
 					}
-					virtual double GetTextureWidth(TextureInfo id) const override {
+					virtual double GetTextureWidth(TextureID id) const override {
 						MakeCurrent();
-						TextureInfo lTex = GetBoundTexture();
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id.GLID), "cannot bind the texture");
+						TextureID lTex = GetBoundTexture();
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id._id.GLID), "cannot bind the texture");
 						int w;
 						AssertGLSuccess(glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w), "cannot get texture width");
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, lTex.GLID), "cannot bind the texture");
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, lTex._id.GLID), "cannot bind the texture");
 						return w;
 					}
 					virtual TextureWrap GetHorizontalTextureWrap() const override {
@@ -196,21 +196,21 @@ namespace DE {
 						MakeCurrent();
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GetWrapModeID(w)), "cannot set texture wrap");
 					}
-					virtual Gdiplus::Bitmap *GetTextureImage(TextureInfo id) const override {
+					virtual Gdiplus::Bitmap *GetTextureImage(TextureID id) const override {
 						MakeCurrent();
-						TextureInfo lTex = GetBoundTexture();
+						TextureID lTex = GetBoundTexture();
 						Gdiplus::Bitmap *bmp = new Gdiplus::Bitmap(GetTextureWidth(id), GetTextureHeight(id));
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id.GLID), "cannot bind the texture");
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id._id.GLID), "cannot bind the texture");
 						Gdiplus::BitmapData data;
 						ZeroMemory(&data, sizeof(data));
 						Gdiplus::Rect r(0, 0, bmp->GetWidth(), bmp->GetHeight());
 						AssertGDIPlusSuccess(bmp->LockBits(&r, Gdiplus::ImageLockModeWrite, PixelFormat32bppARGB, &data), "cannot lock the bitmap");
 						AssertGLSuccess(glGetTexImage(GL_TEXTURE_2D, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, data.Scan0), "cannot get texture image");
 						AssertGDIPlusSuccess(bmp->UnlockBits(&data), "cannot unlock the bitmap");
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, lTex.GLID), "cannot bind the texture");
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, lTex._id.GLID), "cannot bind the texture");
 						return bmp;
 					}
-					virtual void SetTextureImage(TextureInfo id, Gdiplus::Bitmap &bmp) const {
+					virtual void SetTextureImage(TextureID id, Gdiplus::Bitmap &bmp) const {
 						MakeCurrent();
 						UINT w = bmp.GetWidth(), h = bmp.GetHeight();
 						if (w == 0 || h == 0) {
@@ -220,7 +220,7 @@ namespace DE {
 						Gdiplus::BitmapData data;
 						ZeroMemory(&data, sizeof(data));
 						AssertGDIPlusSuccess(bmp.LockBits(&r, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &data), "cannot lock the bitmap");
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id.GLID), "cannot bind the texture");
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, id._id.GLID), "cannot bind the texture");
 						AssertGLSuccess(glTexImage2D(GL_TEXTURE_2D, 0, 4, w, h, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, data.Scan0), "cannot set image pixels");
 						AssertGDIPlusSuccess(bmp.UnlockBits(&data), "cannot unlock the bitmap");
 					}
@@ -251,15 +251,17 @@ namespace DE {
 						}
 					}
 
-					virtual FrameBufferInfo CreateFrameBuffer(const Core::Math::Rectangle &rect) override {
+					virtual FrameBuffer CreateFrameBuffer(const Core::Math::Rectangle &rect) override {
 #ifndef DE_NO_GLEW
 						MakeCurrent();
-						FrameBufferInfo fbi;
+						FrameBuffer fbi;
 						fbi.Region = rect;
-						AssertGLSuccess(glGenFramebuffersEXT(1, &fbi.ID.GLID), "cannot create buffer");
-						AssertGLSuccess(glGenTextures(1, &fbi.TextureID.GLID), "cannot generate texture");
-						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbi.ID.GLID), "cannot bind the buffer");
-						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, fbi.TextureID.GLID), "cannot bind the texture");
+
+						AssertGLSuccess(glGenFramebuffersEXT(1, &fbi.BufferID._id.GLID.BufID), "cannot create buffer");
+						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbi.BufferID._id.GLID.BufID), "cannot bind the buffer");
+
+						AssertGLSuccess(glGenTextures(1, &fbi.TextureID._id.GLID), "cannot generate texture");
+						AssertGLSuccess(glBindTexture(GL_TEXTURE_2D, fbi.TextureID._id.GLID), "cannot bind the texture");
 						AssertGLSuccess(glViewport(0.0, 0.0, rect.Width(), rect.Height()), "cannot set the viewport");
 						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR), "cannot set texture parameters");
@@ -268,20 +270,26 @@ namespace DE {
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0), "cannot set texture parameters");
 						AssertGLSuccess(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0), "cannot set texture parameters");
 						AssertGLSuccess(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, rect.Width(), rect.Height(), 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr), "cannot set texture image");
-						AssertGLSuccess(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, fbi.TextureID.GLID, 0), "cannot set frame buffer texture");
+						AssertGLSuccess(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D, fbi.TextureID._id.GLID, 0), "cannot set frame buffer texture");
+
+						AssertGLSuccess(glGenRenderbuffersEXT(1, &fbi.BufferID._id.GLID.StencilBufID), "cannot generate stencil buffer");
+						AssertGLSuccess(glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, fbi.BufferID._id.GLID.StencilBufID), "cannot bind stencil buffer");
+						AssertGLSuccess(glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_DEPTH24_STENCIL8, rect.Width(), rect.Height()), "cannot allocate stencil buffer storage");
+						AssertGLSuccess(glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER_EXT, fbi.BufferID._id.GLID.StencilBufID), "cannot attach stencil buffer");
+
 						if (glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT) != GL_FRAMEBUFFER_COMPLETE_EXT) {
 							throw Core::SystemException(_TEXT("cannot create frame buffer"));
 						}
 						return fbi;
 #else
-						return FrameBufferInfo();
+						return FrameBuffer();
 #endif
 					}
-					virtual void BeginFrameBuffer(const FrameBufferInfo &fbi) override {
+					virtual void BeginFrameBuffer(const FrameBuffer &fbi) override {
 #ifndef DE_NO_GLEW
-						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbi.ID.GLID), "cannot bind the frame buffer");
+						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbi.BufferID._id.GLID.BufID), "cannot bind the frame buffer");
 						AssertGLSuccess(glClearColor(0.0, 0.0, 0.0, 0.0), "cannot set clear color");
-						AssertGLSuccess(glClear(GL_COLOR_BUFFER_BIT), "cannot clear the buffer");
+						AssertGLSuccess(glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT), "cannot clear the buffer");
 						AssertGLSuccess(glViewport(0.0, 0.0, fbi.Region.Width(), fbi.Region.Height()), "cannot set viewport");
 						_inbuf = true;
 #endif
@@ -293,14 +301,16 @@ namespace DE {
 						_inbuf = false;
 #endif
 					}
-					virtual void DeleteFrameBuffer(const FrameBufferInfo &fbi) override {
+					virtual void DeleteFrameBuffer(const FrameBuffer &fbi) override {
 #ifndef DE_NO_GLEW
-						AssertGLSuccess(glDeleteFramebuffers(1, &fbi.ID.GLID), "cannot delete the frame buffer");
-						AssertGLSuccess(glDeleteTextures(1, &fbi.TextureID.GLID), "cannot delete the texture");
+						AssertGLSuccess(glDeleteRenderbuffersEXT(1, &fbi.BufferID._id.GLID.StencilBufID), "cannot delete stencil buffer");
+						AssertGLSuccess(glDeleteFramebuffers(1, &fbi.BufferID._id.GLID.BufID), "cannot delete the frame buffer");
+						AssertGLSuccess(glDeleteTextures(1, &fbi.TextureID._id.GLID), "cannot delete the texture");
 #endif
 					}
 
 #ifndef DE_NO_GLEW
+					// gl-specific functions
 					virtual GLShaderObject CreateShader(const Core::AsciiString &vert, const Core::AsciiString &frag) {
 						GLShaderObject obj;
 						if (vert.Length() > 0) {
@@ -320,24 +330,47 @@ namespace DE {
 						int res;
 						glGetObjectParameterivARB(prog, GL_OBJECT_LINK_STATUS_ARB, &res);
 						if (!res) {
-#ifdef DEBUG
+#	ifdef DEBUG
 							char x[500];
 							glGetInfoLogARB(prog, sizeof(x), nullptr, x);
 							std::cout<<x<<std::endl;
-#endif
+#	endif
 							glDeleteObjectARB(prog);
 							throw Core::SystemException(_TEXT("error when creating the program"));
 						}
 						obj.ProgID = prog;
 						return obj;
 					}
-#endif
-					virtual void UseShader(size_t shader) {
-#ifndef DE_NO_GLEW
-						glUseProgram(shader);
-#endif
+					virtual void UseShader(const GLShaderObject &shader) {
+						glUseProgram(shader.ProgID);
 					}
-#ifndef DE_NO_GLEW
+					virtual void BindTextureToSampler(const GLShaderObject &shader, const TextureID &tex, const Core::AsciiString &name, GLint slot) {
+						GLint loc = glGetUniformLocation(shader.ProgID, *name);
+						glUseProgram(shader.ProgID);
+						glUniform1i(loc, slot);
+						glActiveTexture(GL_TEXTURE0 + slot);
+						glBindTexture(GL_TEXTURE_2D, tex._id.GLID);
+					}
+					virtual void SetShaderVariableFloat(const GLShaderObject &shader, const Core::AsciiString &name, double value) {
+						GLint loc = glGetUniformLocation(shader.ProgID, *name);
+						glUseProgram(shader.ProgID);
+						glUniform1f(loc, value);
+					}
+					virtual void SetShaderVariableInt(const GLShaderObject &shader, const Core::AsciiString &name, int value) {
+						GLint loc = glGetUniformLocation(shader.ProgID, *name);
+						glUseProgram(shader.ProgID);
+						glUniform1i(loc, value);
+					}
+					virtual void SetShaderVariableVector2(const GLShaderObject &shader, const Core::AsciiString &name, const Core::Math::Vector2 &value) {
+						GLint loc = glGetUniformLocation(shader.ProgID, *name);
+						glUseProgram(shader.ProgID);
+						glUniform2f(loc, value.X, value.Y);
+					}
+					virtual void SetShaderVariableColor(const GLShaderObject &shader, const Core::AsciiString &name, const Core::Color &color) {
+						GLint loc = glGetUniformLocation(shader.ProgID, *name);
+						glUseProgram(shader.ProgID);
+						glUniform4f(loc, color.R / 255.0, color.G / 255.0, color.B / 255.0, color.A / 255.0);
+					}
 					virtual void DeleteShader(const GLShaderObject &obj) {
 						if (obj.VertID > 0) {
 							glDeleteObjectARB(obj.VertID);

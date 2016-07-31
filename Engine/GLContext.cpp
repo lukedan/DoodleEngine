@@ -51,12 +51,12 @@ namespace DE {
 				AssertGLSuccess(glEnableClientState(GL_TEXTURE_COORD_ARRAY), "cannot enable UV array");
 				AssertGLSuccess(glEnableClientState(GL_COLOR_ARRAY), "cannot enable color array");
 
-				AssertGLSuccess(glEnable(GL_POINT_SMOOTH), "cannot enable anti-alias");
-				AssertGLSuccess(glHint(GL_POINT_SMOOTH_HINT, GL_NICEST), "cannot enable anti-alias");
-				AssertGLSuccess(glEnable(GL_LINE_SMOOTH), "cannot enable anti-alias");
-				AssertGLSuccess(glHint(GL_LINE_SMOOTH_HINT, GL_NICEST), "cannot enable anti-alias");
-				AssertGLSuccess(glEnable(GL_POLYGON_SMOOTH), "cannot enable anti-alias");
-				AssertGLSuccess(glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST), "cannot enable anti-alias");
+//				AssertGLSuccess(glEnable(GL_POINT_SMOOTH), "cannot enable anti-alias");
+//				AssertGLSuccess(glHint(GL_POINT_SMOOTH_HINT, GL_NICEST), "cannot enable anti-alias");
+//				AssertGLSuccess(glEnable(GL_LINE_SMOOTH), "cannot enable anti-alias");
+//				AssertGLSuccess(glHint(GL_LINE_SMOOTH_HINT, GL_NICEST), "cannot enable anti-alias");
+//				AssertGLSuccess(glEnable(GL_POLYGON_SMOOTH), "cannot enable anti-alias");
+//				AssertGLSuccess(glHint(GL_POLYGON_SMOOTH_HINT, GL_NICEST), "cannot enable anti-alias");
 			}
 			GLContext::~GLContext() {
 				GLContext *&current = GetCurrentContext();

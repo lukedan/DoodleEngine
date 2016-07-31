@@ -25,7 +25,7 @@ namespace DE {
 				throw InvalidArgumentException(_TEXT("the renderer is not bound to any context"));
 			}
 			Dictionary<int, AtlasTexture> ats;
-			List<Texture> ldtxs;
+			List<TextureID> ldtxs;
 			List<double> yls;
 			yls.PushBack(0.0);
 			UnstableSort<List<TextureInfo>, TextureInfo, TextureInfoComparer>(_texs);

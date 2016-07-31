@@ -21,6 +21,10 @@
 namespace DE {
 	namespace Graphics {
 		class Renderer;
+		namespace RenderingContexts {
+			class RenderingContext;
+			class GLContext;
+		}
 
 		struct Vertex {
 			Vertex() = default;
@@ -76,15 +80,37 @@ namespace DE {
 			BitwiseInvert
 		};
 
-		union TextureInfo {
-			GLuint GLID;
+		struct TextureID {
+				friend class RenderingContexts::RenderingContext;
+				friend class RenderingContexts::GLContext;
+				friend class Renderer;
+			public:
+				TextureID() {
+					std::memset(&_id, 0, sizeof(_id));
+				}
+			protected:
+				union {
+					GLuint GLID;
+				} _id;
 		};
-		struct FrameBufferInfo {
-			union FrameBufferID {
-				GLuint GLID;
-			};
-			FrameBufferID ID;
-			TextureInfo TextureID;
+		struct FrameBufferID {
+				friend class RenderingContexts::RenderingContext;
+				friend class RenderingContexts::GLContext;
+				friend class Renderer;
+			public:
+				FrameBufferID() {
+					std::memset(&_id, 0, sizeof(_id));
+				}
+			protected:
+				union {
+					struct {
+						GLuint BufID, StencilBufID;
+					} GLID;
+				} _id;
+		};
+		struct FrameBuffer {
+			FrameBufferID BufferID;
+			TextureID TextureID;
 			Core::Math::Rectangle Region;
 		};
 		namespace RenderingContexts {
@@ -117,26 +143,24 @@ namespace DE {
 					virtual void SetLineWidth(double) = 0;
 					virtual double GetLineWidth() const = 0;
 
-					virtual TextureInfo LoadTextureFromBitmap(Gdiplus::Bitmap&) = 0;
-					virtual void DeleteTexture(TextureInfo) = 0;
-					virtual void BindTexture(TextureInfo) = 0;
+					virtual TextureID LoadTextureFromBitmap(Gdiplus::Bitmap&) = 0;
+					virtual void DeleteTexture(TextureID) = 0;
+					virtual void BindTexture(TextureID) = 0;
 					virtual void UnbindTexture() = 0;
-					virtual TextureInfo GetBoundTexture() const = 0;
-					virtual double GetTextureHeight(TextureInfo) const = 0;
-					virtual double GetTextureWidth(TextureInfo) const = 0;
+					virtual TextureID GetBoundTexture() const = 0;
+					virtual double GetTextureHeight(TextureID) const = 0;
+					virtual double GetTextureWidth(TextureID) const = 0;
 					virtual TextureWrap GetHorizontalTextureWrap() const = 0;
 					virtual void SetHorizontalTextureWrap(TextureWrap) = 0;
 					virtual TextureWrap GetVerticalTextureWrap() const = 0;
 					virtual void SetVerticalTextureWrap(TextureWrap) = 0;
-					virtual Gdiplus::Bitmap *GetTextureImage(TextureInfo) const = 0;
-					virtual void SetTextureImage(TextureInfo, Gdiplus::Bitmap&) const = 0;
+					virtual Gdiplus::Bitmap *GetTextureImage(TextureID) const = 0;
+					virtual void SetTextureImage(TextureID, Gdiplus::Bitmap&) const = 0;
 
-					virtual FrameBufferInfo CreateFrameBuffer(const Core::Math::Rectangle&) = 0;
-					virtual void BeginFrameBuffer(const FrameBufferInfo&) = 0;
+					virtual FrameBuffer CreateFrameBuffer(const Core::Math::Rectangle&) = 0;
+					virtual void BeginFrameBuffer(const FrameBuffer&) = 0;
 					virtual void BackToDefaultFrameBuffer() = 0;
-					virtual void DeleteFrameBuffer(const FrameBufferInfo&) = 0;
-
-					virtual void UseShader(size_t) = 0;
+					virtual void DeleteFrameBuffer(const FrameBuffer&) = 0;
 
 					virtual void DrawVertices(const Vertex*, size_t, RenderMode) = 0;
 					virtual void DrawVertices(const Core::Math::Vector2*, const Core::Color*, const Core::Math::Vector2*, size_t, RenderMode) = 0;

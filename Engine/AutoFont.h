@@ -27,7 +27,7 @@ namespace DE {
 						CheckForData(c);
 						return _atl.TargetAtlas->AtlasTextures()[c];
 					}
-					const Texture &GetTexture(size_t pg) const override {
+					const TextureID &GetTexture(size_t pg) const override {
 						_atl.Flush();
 						return _atl.TargetAtlas->Textures()[pg];
 					}

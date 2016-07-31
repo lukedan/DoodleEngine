@@ -183,7 +183,7 @@ namespace DE {
 					}
 					if (drd) {
 						if (ctex.Page != lstpg) {
-							r.SetTexture(txt.Font->GetTexture(lstpg));
+							r.BindTexture(txt.Font->GetTexture(lstpg));
 							r.DrawVertices(vs, RenderMode::Triangles);
 							lstpg = ctex.Page;
 							vs.Clear();
@@ -203,10 +203,9 @@ namespace DE {
 					}
 				}
 				if (vs.Count() > 0) {
-					r.SetTexture(txt.Font->GetTexture(lstpg));
+					r.BindTexture(txt.Font->GetTexture(lstpg));
 					r.DrawVertices(vs, RenderMode::Triangles);
 				}
-				r<<Texture();
 			}
 			List<Math::Rectangle> BasicText::DoGetSelectionRegion(const BasicTextFormatCache &cc, const BasicText &txt, size_t start, size_t end) {
 				if (start >= end) {
@@ -633,7 +632,7 @@ namespace DE {
 					while (changeID < txt.Changes.Count() && i == txt.Changes[changeID].Position) {
 						if (txt.Changes[changeID].Type == ChangeType::Font) {
 							if (ti.Font && vxs.Count() > 0) {
-								r.SetTexture(ti.Font->GetTexture(lastPage));
+								r.BindTexture(ti.Font->GetTexture(lastPage));
 								r.DrawVertices(vxs, RenderMode::Triangles);
 								vxs.Clear();
 							}
@@ -646,7 +645,7 @@ namespace DE {
 						const AtlasTexture &atex = ti.Font->GetTextureInfo(txt.Content[i]);
 						if (atex.Page != lastPage) {
 							if (vxs.Count() > 0) {
-								r.SetTexture(ti.Font->GetTexture(lastPage));
+								r.BindTexture(ti.Font->GetTexture(lastPage));
 								r.DrawVertices(vxs, RenderMode::Triangles);
 								vxs.Clear();
 							}
@@ -656,6 +655,9 @@ namespace DE {
 						rect.Scale(Vector2(), ti.Scale);
 						Vector2 diff = topLeft;
 						diff.Y += (cache.LineHeights[curLine] - ti.Font->GetHeight() * ti.Scale) * ti.LocalVerticalPosition;
+						if (ti.RoundToInteger) {
+							diff = Vector2(round(diff.X), round(diff.Y));
+						}
 						rect.Translate(diff);
 						vxs.PushBack(Vertex(rect.TopLeft(), ti.Color, atex.UVRect.TopLeft()));
 						vxs.PushBack(Vertex(rect.TopRight(), ti.Color, atex.UVRect.TopRight()));
@@ -671,7 +673,7 @@ namespace DE {
 					}
 				}
 				if (vxs.Count() > 0) {
-					r.SetTexture(ti.Font->GetTexture(lastPage));
+					r.BindTexture(ti.Font->GetTexture(lastPage));
 					r.DrawVertices(vxs, RenderMode::Triangles);
 				}
 			}
