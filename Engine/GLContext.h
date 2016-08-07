@@ -37,16 +37,26 @@ namespace DE {
 
 				    virtual void Begin() override {
 				    	MakeCurrent();
+				    	if (_inbuf) {
+							AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0), "cannot bind the frame buffer");
+							_inbuf = false;
+							DoSetViewboxOutOfBuffer();
+				    	}
+				    	// viewport correction
 						RECT r;
                         GetClientRect(_hWnd, &r);
                         _fvp = Core::Math::Rectangle(_vp.Left, r.bottom - _vp.Bottom, _vp.Width(), _vp.Height());
 						AssertGLSuccess(glViewport(_fvp.Left, _fvp.Top, _fvp.Width(), _fvp.Height()), "cannot set viewport");
-					    AssertGLSuccess(glClearColor(_bkg.FloatR(), _bkg.FloatG(), _bkg.FloatB(), _bkg.FloatA()), "cannot set background");
+				    	// viewport correction end
 				    	AssertGLSuccess(glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT), "cannot clear the background");
 				    }
 				    virtual void End() override {
 				    	SwapBuffers(_hDC);
 				    }
+
+					virtual void SetBlendFunction(BlendFactor src, BlendFactor dst) {
+						AssertGLSuccess(glBlendFunc(GetBlendFactorName(src), GetBlendFactorName(dst)), "cannot set blend function");
+					}
 
 					virtual Gdiplus::Bitmap *GetScreenShot(const Core::Math::Rectangle &region) override  {
 						MakeCurrent();
@@ -68,18 +78,11 @@ namespace DE {
 					}
 
 					virtual void SetViewbox(const Core::Math::Rectangle &box) override {
-						AssertGLSuccess(glMatrixMode(GL_PROJECTION), "cannot set matrix mode");
-						AssertGLSuccess(glLoadIdentity(), "cannot load identity matrix");
-						if (_inbuf) {
-							AssertGLSuccess(glOrtho(box.Left, box.Right, box.Top, box.Bottom, -1, 1), "cannot set ortho");
-						} else {
-							AssertGLSuccess(glOrtho(box.Left, box.Right, box.Bottom, box.Top, -1, 1), "cannot set ortho");
-						}
-						AssertGLSuccess(glMatrixMode(GL_MODELVIEW), "cannot set matrix mode");
-						AssertGLSuccess(glLoadIdentity(), "cannot load identity matrix");
+						_vbox = box;
+						DoSetViewbox();
 					}
 					virtual void SetBackground(const Core::Color &color) override {
-						_bkg = color;
+					    AssertGLSuccess(glClearColor(color.FloatR(), color.FloatG(), color.FloatB(), color.FloatA()), "cannot set background");
 					}
 					virtual Core::Color GetBackground() const override {
 						float d[4];
@@ -285,20 +288,40 @@ namespace DE {
 						return FrameBuffer();
 #endif
 					}
-					virtual void BeginFrameBuffer(const FrameBuffer &fbi) override {
+					virtual void BeginFrameBuffer(const FrameBuffer &buf) override {
 #ifndef DE_NO_GLEW
-						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbi.BufferID._id.GLID.BufID), "cannot bind the frame buffer");
+						if (buf.BufferID._id.GLID.BufID == 0) {
+							BackToDefaultFrameBuffer();
+							return;
+						}
+						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, buf.BufferID._id.GLID.BufID), "cannot bind the frame buffer");
+						AssertGLSuccess(glViewport(0.0, 0.0, buf.Region.Width(), buf.Region.Height()), "cannot set viewport");
+						if (!_inbuf) {
+							_inbuf = true;
+							DoSetViewboxInBuffer();
+						}
 						AssertGLSuccess(glClearColor(0.0, 0.0, 0.0, 0.0), "cannot set clear color");
 						AssertGLSuccess(glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT), "cannot clear the buffer");
-						AssertGLSuccess(glViewport(0.0, 0.0, fbi.Region.Width(), fbi.Region.Height()), "cannot set viewport");
-						_inbuf = true;
+#endif
+					}
+					virtual void ContinueFrameBuffer(const FrameBuffer &buf) override {
+#ifndef DE_NO_GLEW
+						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, buf.BufferID._id.GLID.BufID), "cannot bind the frame buffer");
+						AssertGLSuccess(glViewport(0.0, 0.0, buf.Region.Width(), buf.Region.Height()), "cannot set viewport");
+						if (!_inbuf) {
+							_inbuf = true;
+							DoSetViewboxInBuffer();
+						}
 #endif
 					}
 					virtual void BackToDefaultFrameBuffer() override {
 #ifndef DE_NO_GLEW
 						AssertGLSuccess(glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0), "cannot bind the frame buffer");
 						AssertGLSuccess(glViewport(_fvp.Left, _fvp.Top, _fvp.Width(), _fvp.Height()), "cannot set viewport");
-						_inbuf = false;
+						if (_inbuf) {
+							_inbuf = false;
+							DoSetViewboxOutOfBuffer();
+						}
 #endif
 					}
 					virtual void DeleteFrameBuffer(const FrameBuffer &fbi) override {
@@ -401,9 +424,12 @@ namespace DE {
 				    HGLRC _hRC;
 				    HDC _hDC;
 				    HWND _hWnd;
-				    Core::Color _bkg;
+				    // TODO optimize or simplify these corrections
+				    // viewport correction (when window size changed)
 				    Core::Math::Rectangle _vp, _fvp;
+				    // viewbox correction (between framebuffers)
 				    bool _inbuf = false;
+				    Core::Math::Rectangle _vbox {0.0, 0.0, 1.0, 1.0};
 
 				    static GLContext *&GetCurrentContext();
 
@@ -411,6 +437,33 @@ namespace DE {
 						AssertGLSuccess(glTexCoord2d(v.UV.X, v.UV.Y), "cannot set vertex UV");
 						AssertGLSuccess(glColor4ub(v.Color.R, v.Color.G, v.Color.B, v.Color.A), "cannot set vertex color");
 						AssertGLSuccess(glVertex2d(v.Position.X, v.Position.Y), "cannot set vertex position");
+					}
+
+					virtual void PrepareSetViewbox() {
+						glMatrixMode(GL_PROJECTION);
+						glLoadIdentity();
+					}
+					virtual void DoSetViewbox() {
+						PrepareSetViewbox();
+						if (_inbuf) {
+							AssertGLSuccess(glOrtho(_vbox.Left, _vbox.Right, _vbox.Top, _vbox.Bottom, -1, 1), "cannot set ortho");
+						} else {
+							AssertGLSuccess(glOrtho(_vbox.Left, _vbox.Right, _vbox.Bottom, _vbox.Top, -1, 1), "cannot set ortho");
+						}
+				    	glMatrixMode(GL_MODELVIEW);
+				    	glLoadIdentity();
+					}
+					virtual void DoSetViewboxInBuffer() {
+						PrepareSetViewbox();
+						AssertGLSuccess(glOrtho(_vbox.Left, _vbox.Right, _vbox.Top, _vbox.Bottom, -1, 1), "cannot set ortho");
+				    	glMatrixMode(GL_MODELVIEW);
+				    	glLoadIdentity();
+					}
+					virtual void DoSetViewboxOutOfBuffer() {
+						PrepareSetViewbox();
+						AssertGLSuccess(glOrtho(_vbox.Left, _vbox.Right, _vbox.Bottom, _vbox.Top, -1, 1), "cannot set ortho");
+				    	glMatrixMode(GL_MODELVIEW);
+				    	glLoadIdentity();
 					}
 
 #ifndef DE_NO_GLEW
@@ -422,11 +475,11 @@ namespace DE {
 						int res;
 						glGetObjectParameterivARB(id, GL_OBJECT_COMPILE_STATUS_ARB, &res);
 						if (!res) {
-#ifdef DEBUG
+#	ifdef DEBUG
 							char x[500];
 							glGetInfoLogARB(id, sizeof(x), nullptr, x);
 							std::cout<<x<<std::endl;
-#endif
+#	endif
 							glDeleteObjectARB(id);
 							throw Core::SystemException(_TEXT("cannot create vertex shader"));
 						}
@@ -560,6 +613,43 @@ namespace DE {
 							}
 							default: {
 								return GL_KEEP;
+							}
+						}
+					}
+					inline static GLenum GetBlendFactorName(BlendFactor fact) {
+						switch (fact) {
+							case BlendFactor::InvertedSourceAlpha: {
+								return GL_ONE_MINUS_SRC_ALPHA;
+							}
+							case BlendFactor::InvertedSourceColor: {
+								return GL_ONE_MINUS_SRC_COLOR;
+							}
+							case BlendFactor::InvertedTargetAlpha: {
+								return GL_ONE_MINUS_DST_ALPHA;
+							}
+							case BlendFactor::InvertedTargetColor: {
+								return GL_ONE_MINUS_DST_COLOR;
+							}
+							case BlendFactor::One: {
+								return GL_ONE;
+							}
+							case BlendFactor::SourceAlpha: {
+								return GL_SRC_ALPHA;
+							}
+							case BlendFactor::SourceColor: {
+								return GL_SRC_COLOR;
+							}
+							case BlendFactor::TargetAlpha: {
+								return GL_DST_ALPHA;
+							}
+							case BlendFactor::TargetColor: {
+								return GL_DST_COLOR;
+							}
+							case BlendFactor::Zero: {
+								return GL_ZERO;
+							}
+							default: {
+								return GL_ZERO;
 							}
 						}
 					}

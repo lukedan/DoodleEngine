@@ -190,6 +190,11 @@ namespace DE {
 						return true;
 					}
 
+					void SwapRemove(size_t id) {
+						SwapToBack(id);
+						PopBack();
+					}
+
 					void Insert(size_t index, const T *objs, size_t count) {
 						if (count == 0) {
 							return;

@@ -89,6 +89,12 @@ namespace DE {
 					return _ctx != nullptr;
 				}
 
+				void SetBlendFunction(BlendFactor src, BlendFactor dst) {
+					if (_ctx) {
+						_ctx->SetBlendFunction(src, dst);
+					}
+				}
+
 				TextureID LoadTextureFromFile(const Core::String &fileName) {
 					Gdiplus::Bitmap b(*fileName);
 					return LoadTextureFromBitmap(b);
@@ -204,6 +210,11 @@ namespace DE {
 				void BeginFrameBuffer(const FrameBuffer &buf) {
 					if (_ctx) {
 						_ctx->BeginFrameBuffer(buf);
+					}
+				}
+				void ContinueFrameBuffer(const FrameBuffer &buf) {
+					if (_ctx) {
+						_ctx->ContinueFrameBuffer(buf);
 					}
 				}
 				void BackToDefaultFrameBuffer() {

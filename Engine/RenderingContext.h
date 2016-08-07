@@ -54,6 +54,18 @@ namespace DE {
 			Repeat,
 			RepeatBorder
 		};
+		enum class BlendFactor {
+			Zero,
+			One,
+			SourceAlpha,
+			TargetAlpha,
+			InvertedSourceAlpha,
+			InvertedTargetAlpha,
+			SourceColor,
+			TargetColor,
+			InvertedSourceColor,
+			InvertedTargetColor
+		};
 		enum class ShaderTarget {
 			GLSLFragment,
 			GLSLVertex,
@@ -131,6 +143,8 @@ namespace DE {
 					virtual Core::Color GetBackground() const = 0;
 					virtual Gdiplus::Bitmap *GetScreenShot(const Core::Math::Rectangle&) = 0;
 
+					virtual void SetBlendFunction(BlendFactor, BlendFactor) = 0;
+
 					// NOTE the opengl specification is partly int and partly unsigned... whatever
 					// TODO Get functions
 					virtual void SetStencilFunction(StencilComparisonFunction, unsigned, unsigned) = 0;
@@ -159,6 +173,7 @@ namespace DE {
 
 					virtual FrameBuffer CreateFrameBuffer(const Core::Math::Rectangle&) = 0;
 					virtual void BeginFrameBuffer(const FrameBuffer&) = 0;
+					virtual void ContinueFrameBuffer(const FrameBuffer&) = 0;
 					virtual void BackToDefaultFrameBuffer() = 0;
 					virtual void DeleteFrameBuffer(const FrameBuffer&) = 0;
 

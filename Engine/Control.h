@@ -227,6 +227,43 @@ namespace DE {
 					return _inited;
 				}
 
+				inline static void FillRectWithFallback(
+					Graphics::Renderer &r,
+					const Graphics::Brush *b,
+					const Graphics::Brush *fallback,
+					const Core::Math::Rectangle &rect
+				) {
+					if (b) {
+						b->FillRect(rect, r);
+					} else if (fallback) {
+						fallback->FillRect(rect, r);
+					}
+				}
+				inline static void DrawLinesWithFallback(
+					Graphics::Renderer &r,
+					const Graphics::Pen *p,
+					const Graphics::Pen *fallback,
+					const Core::Collections::List<Core::Math::Vector2> &lines
+				) {
+					if (p) {
+						p->DrawLines(lines, r);
+					} else if (fallback) {
+						fallback->DrawLines(lines, r);
+					}
+				}
+				inline static void DrawLineStripWithFallback(
+					Graphics::Renderer &r,
+					const Graphics::Pen *p,
+					const Graphics::Pen *fallback,
+					const Core::Collections::List<Core::Math::Vector2> &lineStrip
+				) {
+					if (p) {
+						p->DrawLineStrip(lineStrip, r);
+					} else if (fallback) {
+						fallback->DrawLineStrip(lineStrip, r);
+					}
+				}
+
 				Anchor _anchor = Anchor::TopLeft;
 				PanelBase *_father = nullptr;
 				Core::Math::Rectangle _actualLayout;

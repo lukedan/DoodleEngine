@@ -1989,97 +1989,522 @@ class PhysicsTest : public Test {
 		}
 };
 
-class TriangulationTest : public Test {
+class EditorTest : public Test {
 	public:
 		const Vector2 ScreenSize {1024.0, 768.0};
 
-		TriangulationTest() : Test() {
+		EditorTest() : Test() {
 			window.ClientSize = ScreenSize;
 			window.PutToCenter();
 			r.SetViewport(ScreenSize);
 			r.SetViewbox(ScreenSize);
 			r.SetBackground(Color(0, 0, 0, 255));
 
-			window.MouseDown += [&](const MouseButtonInfo &info) {
-				for (size_t i = 0; i < vxs.Count(); ++i) {
-					if ((vxs[i] - info.Position).LengthSquared() < 100.0) {
-						drag = i;
-						lastpos = info.Position;
-						dragging = true;
-						break;
-					}
-				}
-			};
-			window.MouseMove += [&](const MouseMoveInfo &info) {
-				if (dragging) {
-					Vector2 diff = info.Position - lastpos;
-					vxs[drag] += diff;
-					lastpos = info.Position;
-				}
-			};
+			_ui.SetFather(&window);
+			_ui.SetBounds(ScreenSize);
 
-			Random rnd;
-			for (size_t i = 0; i < 10; ++i) {
-				vxs.PushBack(Vector2(round(rnd.NextDouble() * ScreenSize.X), round(rnd.NextDouble() * ScreenSize.Y)));
+			pnl.SetAnchor(Anchor::All);
+			pnl.SetMargins(Thickness(0.0));
+			pnl.ContentFont = &_font;
+			_ui.SetChild(&pnl);
+
+			for (size_t i = 0; i < 3; ++i) {
+				pnl.InsertNode(_data + i);
 			}
 		}
 
-		void Update(double) override {
-			if (dragging && !IsKeyDown(VK_LBUTTON)) {
-				dragging = false;
-			}
+		void Update(double dt) override {
+			_ui.Update(dt);
 		}
 		void Render() override {
 			r.Begin();
-
-			List<Vertex> rvxs;
-
-			List<Vertex> posv, negv;
-			Vector2 v1 = vxs[0], v2 = vxs[1], v3 = vxs[2];
-			for (size_t i = 2; i < vxs.Count(); ++i) {
-				v2 = vxs[i - 1];
-				v3 = vxs[i];
-				if (Vector2::Cross(v2 - v1, v3 - v1) > 0.0) {
-					posv.PushBack(Vertex(v1));
-					posv.PushBack(Vertex(v2));
-					posv.PushBack(Vertex(v3));
-				} else {
-					negv.PushBack(Vertex(v1));
-					negv.PushBack(Vertex(v2));
-					negv.PushBack(Vertex(v3));
-				}
-			}
-			r.SetStencilFunction(StencilComparisonFunction::Never, 0, 0xFF);
-			r.SetStencilOperation(StencilOperation::WrappedIncrease, StencilOperation::WrappedIncrease, StencilOperation::WrappedIncrease);
-			r.DrawVertices(posv, RenderMode::Triangles);
-			r.SetStencilOperation(StencilOperation::WrappedDecrease, StencilOperation::WrappedDecrease, StencilOperation::WrappedDecrease);
-			r.DrawVertices(negv, RenderMode::Triangles);
-
-			rvxs.Clear();
-			rvxs.PushBack(Vertex(Vector2(0.0, 0.0), Color(255, 255, 0, 100)));
-			rvxs.PushBack(Vertex(Vector2(ScreenSize.X, 0.0), Color(255, 255, 0, 100)));
-			rvxs.PushBack(Vertex(Vector2(0.0, ScreenSize.Y), Color(255, 255, 0, 100)));
-			rvxs.PushBack(Vertex(ScreenSize, Color(255, 255, 0, 100)));
-			r.SetStencilFunction(StencilComparisonFunction::NotEqual, 0, 0xFF);
-			r.DrawVertices(rvxs, RenderMode::TriangleStrip);
-
-			r.SetStencilFunction(StencilComparisonFunction::Always, 0, 0xFF);
-			rvxs.Clear();
-			vxs.ForEach([&](const Vector2 &v) {
-				rvxs.PushBack(Vertex(v, Color(255, 0, 0, 255)));
-				return true;
-			});
-			rvxs.PushBack(Vertex(vxs[0], Color(255, 0, 0, 255)));
-			r.DrawVertices(rvxs, RenderMode::LineStrip);
-
+			_ui.Render(r);
 			r.End();
 		}
 
-		List<Vector2> vxs;
-		bool dragging = false;
-		size_t drag = 0;
-		Vector2 lastpos;
+	protected:
+		UI::World _ui;
+		AutoFont _font {&context, FontFace("Inconsolata.otf", 15.0)};
+
+		class NodeData;
+		enum class LinkDataType {
+			Enum,
+			String
+		};
+		struct Link {
+			LinkDataType DataType = LinkDataType::String;
+
+			int IntData = 0;
+			String StrData;
+
+			NodeData *FromNode = nullptr, *ToNode = nullptr;
+			size_t FromID = 0, ToID = 0;
+		};
+		struct LinkInfo {
+			LinkInfo() = default;
+			LinkInfo(const String &str) : Name(str) {
+			}
+
+			Link *Target = nullptr;
+			String Name;
+		};
+		template <typename T> struct PartialList {
+			PartialList() = default;
+			PartialList(T *arr, size_t l) : Array(arr), Length(l) {
+			}
+
+			T *Array = nullptr;
+			size_t Length = 0;
+		};
+		template <typename T> inline static T *GetAt(const List<PartialList<T>> &lst, size_t id) {
+			for (size_t i = 0; i < lst.Count(); ++i) {
+				if (lst[i].Length > id) {
+					return lst[i].Array + id;
+				}
+				id -= lst[i].Length;
+			}
+			return nullptr;
+		}
+		template <typename T> inline static size_t FindFirst(const List<PartialList<T>> &lst, const std::function<bool(const T&)> &pred) {
+			size_t id = 0;
+			lst.ForEach([&](const PartialList<T> &plst) {
+				for (size_t i = 0; i < plst.Length; ++i) {
+					if (pred(plst.Array[i])) {
+						return false;
+					}
+					++id;
+				}
+				return true;
+			});
+			return id;
+		}
+		template <typename T> inline static size_t FindFirst(const List<PartialList<T>> &lst, const T &obj) {
+			return GetID(lst, [&](const T &o) {
+				return o == obj;
+			});
+		}
+		template <typename T> inline static void ForEach(const List<PartialList<T>> &lst, const std::function<bool(T&)> &op) {
+			lst.ForEach([&](const PartialList<T> &plst) {
+				for (size_t i = 0; i < plst.Length; ++i) {
+					if (!op(plst.Array[i])) {
+						return false;
+					}
+				}
+				return true;
+			});
+		}
+		template <typename T> inline static size_t GetCount(const List<PartialList<T>> &lst) {
+			size_t count = 0;
+			lst.ForEach([&](const PartialList<T> &list) {
+				count += list.Length;
+				return true;
+			});
+			return count;
+		}
+
+		class NodeData {
+			public:
+				virtual ~NodeData() {
+				}
+
+				virtual String GetTitle() const = 0;
+				virtual List<PartialList<LinkInfo>> GetInputSockets() {
+					return List<PartialList<LinkInfo>>();
+				}
+				virtual List<PartialList<LinkInfo>> GetOutputSockets() {
+					return List<PartialList<LinkInfo>>();
+				}
+				virtual void Refresh() {
+				}
+				virtual Control *GetAttachedControl() {
+					return nullptr;
+				}
+		};
+
+		template <typename T> class EnumNodeData : public NodeData {
+			public:
+				String GetTitle() const override {
+					return _TEXT("Enum");
+				}
+				List<PartialList<LinkInfo>> GetOutputSockets() override {
+					List<PartialList<LinkInfo>> lst = NodeData::GetOutputSockets();
+					lst.PushBack(PartialList<LinkInfo>(&_outSoc, 1));
+					return lst;
+				}
+			protected:
+				LinkInfo _outSoc {_TEXT("Value")};
+		};
+		class StringNodeData : public NodeData {
+			public:
+				String GetTitle() const override {
+					return _TEXT("String");
+				}
+				List<PartialList<LinkInfo>> GetOutputSockets() override {
+					List<PartialList<LinkInfo>> lst = NodeData::GetOutputSockets();
+					lst.PushBack(PartialList<LinkInfo>(&_outSoc, 1));
+					return lst;
+				}
+			protected:
+				LinkInfo _outSoc {_TEXT("Value")};
+		};
+		class ShaderNodeData : public NodeData {
+			public:
+				String GetTitle() const override {
+					return _TEXT("Shader");
+				}
+				List<PartialList<LinkInfo>> GetInputSockets() override {
+					List<PartialList<LinkInfo>> lst = NodeData::GetInputSockets();
+					lst.PushBack(PartialList<LinkInfo>(_inSoc, 2));
+					return lst;
+				}
+				List<PartialList<LinkInfo>> GetOutputSockets() override {
+					List<PartialList<LinkInfo>> lst = NodeData::GetOutputSockets();
+					lst.PushBack(PartialList<LinkInfo>(&_outSoc, 1));
+					return lst;
+				}
+			protected:
+				LinkInfo _inSoc[2] {
+					{_TEXT("Vertex")},
+					{_TEXT("Fragment")}
+				};
+				LinkInfo _outSoc {_TEXT("ShaderOutput")};
+		};
+		class RendererSettingsNodeData : public NodeData {
+			public:
+				String GetTitle() const override {
+					return _TEXT("Settings");
+				}
+			protected:
+				LinkInfo _inSoc[2] {
+					{_TEXT("AlphaBlend")},
+					{_TEXT("Stencil")}
+				};
+		};
+
+		class NodePanel : public Control {
+			public:
+				~NodePanel() {
+					_links.ForEach([&](Link *lnk) {
+						lnk->~Link();
+						GlobalAllocator::Free(lnk);
+						return true;
+					});
+				}
+
+				void InsertNode(NodeData *data) {
+					NodeInfo ni;
+					ni.Node = data;
+					ni.Caption.Padding = Math::Rectangle(-2.0, -2.0, 4.0, 4.0);
+					ni.Caption.Content = data->GetTitle();
+					ni.Caption.WrapType = LineWrapType::WrapWordsNoOverflow;
+					ni.Caption.LayoutRectangle = Math::Rectangle(0.0, 0.0, 100.0, 0.0);
+					ni.Caption.Font = _font;
+					ni.InSocketsCache = data->GetInputSockets();
+					ni.OutSocketsCache = data->GetOutputSockets();
+					_nodes.PushBack(ni);
+				}
+
+				void Update(double) override {
+					Vector2 rpos = _actualLayout.TopLeft() + GetRelativeMousePosition();
+					if (_dragging) {
+						_nodes[_draggingNode].Caption.LayoutRectangle.Translate(rpos - _dragOffset - _nodes[_draggingNode].Caption.LayoutRectangle.TopLeft());
+						if (!IsKeyDown(VK_LBUTTON)) {
+							_dragging = false;
+						}
+					}
+					if (_linkTarget != HitObject::Nothing) {
+						NodeData **nd;
+						size_t *id;
+						if (_linkTarget == HitObject::InSocket) {
+							nd = &_tmpLnk.ToNode;
+							id = &_tmpLnk.ToID;
+						} else {
+							nd = &_tmpLnk.FromNode;
+							id = &_tmpLnk.FromID;
+						}
+						*nd = nullptr;
+						for (size_t i = 0; i < _nodes.Count(); ++i) {
+							HitTestInfo hti = _nodes[i].HitTest(rpos);
+							if (hti.HitResult == _linkTarget) {
+								bool hasold = (_linkTarget == HitObject::InSocket ? _nodes[i].GetInSocketLink(hti.HitID) : _nodes[i].GetOutSocketLink(hti.HitID));
+								if (!hasold) {
+									*nd = _nodes[i].Node;
+									*id = hti.HitID;
+									break;
+								}
+							}
+						}
+						if (!IsKeyDown(VK_LBUTTON)) {
+							_linkTarget = HitObject::Nothing;
+							if (*nd) {
+								EstablishLink(_tmpLnk);
+							}
+						}
+					}
+				}
+				void Render(Renderer &r) override {
+					_nodes.ForEach([&](const NodeInfo &ni) {
+						NodeSizeInfo info = ni.GetSize();
+						Vector2 tl = ni.Caption.LayoutRectangle.TopLeft();
+						FillRectWithFallback(r, NodeBackground, GetDefaultNodeBackground(), Math::Rectangle(tl, tl + info.OverallSize));
+						ni.Caption.Render(r);
+						Math::Rectangle rect(
+							ni.Caption.LayoutRectangle.Left,
+							ni.Caption.LayoutRectangle.TopLeft().Y + info.TextSize.Y + NodeInfo::SocketGap,
+							NodeInfo::SocketWidth,
+							NodeInfo::SocketHeight
+						);
+						Vector2 mousePos = _actualLayout.TopLeft() + GetRelativeMousePosition();
+						ForEach<LinkInfo>(ni.InSocketsCache, [&](const LinkInfo&) {
+							if (mousePos.X > rect.Left && mousePos.X < rect.Right && mousePos.Y > rect.Top && mousePos.Y < rect.Bottom) {
+								FillRectWithFallback(r, ActivatedSocketBrush, GetDefaultActivatedSocketBrush(), rect);
+							} else {
+								FillRectWithFallback(r, SocketBrush, GetDefaultSocketBrush(), rect);
+							}
+							rect.Translate(Vector2(0.0, NodeInfo::SocketHeight + NodeInfo::SocketGap));
+							return true;
+						});
+						rect = Math::Rectangle(
+							ni.Caption.LayoutRectangle.Left + info.OverallSize.X - NodeInfo::SocketWidth,
+							ni.Caption.LayoutRectangle.TopLeft().Y + info.TextSize.Y + NodeInfo::SocketGap,
+							NodeInfo::SocketWidth,
+							NodeInfo::SocketHeight
+						);
+						ForEach<LinkInfo>(ni.OutSocketsCache, [&](const LinkInfo&) {
+							if (mousePos.X > rect.Left && mousePos.X < rect.Right && mousePos.Y > rect.Top && mousePos.Y < rect.Bottom) {
+								FillRectWithFallback(r, ActivatedSocketBrush, GetDefaultActivatedSocketBrush(), rect);
+							} else {
+								FillRectWithFallback(r, SocketBrush, GetDefaultSocketBrush(), rect);
+							}
+							rect.Translate(Vector2(0.0, NodeInfo::SocketHeight + NodeInfo::SocketGap));
+							return true;
+						});
+						return true;
+					});
+					_links.ForEach([&](Link *lnk) {
+						DrawLink(r, *lnk);
+						return true;
+					});
+					if (_linkTarget != HitObject::Nothing) {
+						DrawLink(r, _tmpLnk);
+					}
+				}
+				void DrawLink(Renderer &r, const Link &lnk) {
+					Vector2 f = GetRelativeMousePosition() + _actualLayout.TopLeft(), t = f;
+					if (lnk.FromNode) {
+						f = _nodes[FindWithNodeData(lnk.FromNode)].GetOutSocketPos(lnk.FromID);
+					}
+					if (lnk.ToNode) {
+						t = _nodes[FindWithNodeData(lnk.ToNode)].GetInSocketPos(lnk.ToID);
+					}
+					Vector2 c1 = f, c2 = t;
+					c1.X = c2.X = 0.5 * (c1.X + c2.X);
+					double piv = Min(Abs(c1.Y - c2.Y) * 0.4, 50.0);
+					if (c1.X - f.X < piv) {
+						c1.X = f.X + piv;
+						c2.X = t.X - piv;
+					}
+					Bezier bz(f, t, c1, c2);
+					DrawLineStripWithFallback(r, LinkPen, GetDefaultLinkPen(), bz.GetLine(20));
+				}
+
+				void EstablishLink(const Link &lnk) {
+					Link *nlnk = new (GlobalAllocator::Allocate(sizeof(Link))) Link(lnk);
+					if (nlnk->FromNode) {
+						_nodes[FindWithNodeData(nlnk->FromNode)].GetOutSocketLink(nlnk->FromID) = nlnk;
+					}
+					if (nlnk->ToNode) {
+						_nodes[FindWithNodeData(nlnk->ToNode)].GetInSocketLink(nlnk->ToID) = nlnk;
+					}
+					_links.PushBack(nlnk);
+				}
+				void Unlink(Link *old) {
+					_links.SwapRemove(_links.FindFirst(old));
+					_nodes[FindWithNodeData(old->FromNode)].GetOutSocketLink(old->FromID) = nullptr;
+					_nodes[FindWithNodeData(old->ToNode)].GetInSocketLink(old->ToID) = nullptr;
+					old->~Link();
+					GlobalAllocator::Free(old);
+				}
+
+				virtual const Brush *GetDefaultNodeBackground() const {
+					return &DefaultNodeBackground;
+				}
+				virtual const Brush *GetDefaultSocketBrush() const {
+					return &DefaultSocketBrush;
+				}
+				virtual const Brush *GetDefaultActivatedSocketBrush() const {
+					return &DefaultActivatedSocketBrush;
+				}
+				virtual const Pen *GetDefaultLinkPen() const {
+					return &DefaultLinkPen;
+				}
+
+				GetSetProperty<const Font*> ContentFont {
+					[this](const Font *fnt) {
+						_font = fnt;
+						_nodes.ForEach([&](NodeInfo &ni) {
+							ni.Caption.Font = _font;
+							return true;
+						});
+					}, [this]() {
+						return _font;
+					}
+				};
+				ReferenceProperty<const Brush*>
+					NodeBackground {nullptr},
+					SocketBrush {nullptr},
+					ActivatedSocketBrush {nullptr};
+				ReferenceProperty<const Pen*> LinkPen {nullptr};
+			protected:
+				const static SolidBrush DefaultNodeBackground, DefaultSocketBrush, DefaultActivatedSocketBrush;
+				const static Pen DefaultLinkPen;
+
+				struct NodeSizeInfo {
+					Vector2 TextSize, OverallSize;
+				};
+				enum class HitObject {
+					Nothing,
+					Background,
+					InSocket,
+					OutSocket
+				};
+				struct HitTestInfo {
+					HitTestInfo() = default;
+					HitTestInfo(HitObject obj) : HitResult(obj) {
+					}
+					HitTestInfo(HitObject obj, size_t id) : HitResult(obj), HitID(id) {
+					}
+
+					HitObject HitResult = HitObject::Nothing;
+					size_t HitID = 0;
+				};
+				struct NodeInfo {
+					constexpr static double SocketHeight = 5.0, SocketWidth = 7.0, SocketGap = 3.0;
+
+					NodeData *Node = nullptr;
+
+					BasicText Caption;
+					Control *EditorCache = nullptr;
+					List<PartialList<LinkInfo>> InSocketsCache, OutSocketsCache;
+
+					NodeSizeInfo GetSize() const {
+						NodeSizeInfo info;
+						size_t sn = Max(GetCount<LinkInfo>(InSocketsCache), GetCount<LinkInfo>(OutSocketsCache));
+						info.TextSize = Caption.GetSize();
+						info.OverallSize = Vector2(Max(info.TextSize.X, 2.0 * SocketWidth + SocketGap), info.TextSize.Y + sn * (SocketHeight + SocketGap) + SocketGap);
+						return info;
+					}
+					HitTestInfo HitTest(const Vector2 &pos) const {
+						NodeSizeInfo nsi = GetSize();
+						Vector2 diff = pos - Caption.LayoutRectangle.TopLeft();
+						if (diff.X < 0.0 || diff.X > nsi.OverallSize.X || diff.Y < 0.0 || diff.Y > nsi.OverallSize.Y) {
+							return HitTestInfo(HitObject::Nothing);
+						}
+						HitTestInfo res;
+						double socdif = diff.Y - nsi.TextSize.Y - SocketGap;
+						if (socdif < 0.0 || (diff.X > SocketWidth && diff.X < nsi.OverallSize.X - SocketWidth)) {
+							return HitTestInfo(HitObject::Background);
+						}
+						bool in = diff.X < nsi.OverallSize.X * 0.5;
+						size_t
+							y = static_cast<size_t>(floor(socdif / (SocketHeight + SocketGap))),
+							cand = GetCount<LinkInfo>(in ? InSocketsCache : OutSocketsCache);
+						if (y >= cand || socdif - y * (SocketHeight + SocketGap) >= SocketHeight) {
+							return HitTestInfo(HitObject::Background);
+						}
+						return HitTestInfo(in ? HitObject::InSocket : HitObject::OutSocket, y);
+					}
+					Vector2 GetInSocketPos(size_t id) const {
+						return
+							Caption.LayoutRectangle.TopLeft() +
+							Vector2(0.0, Caption.GetSize().Y + (SocketGap + SocketHeight) * id + SocketHeight * 0.5 + SocketGap);
+					}
+					Vector2 GetOutSocketPos(size_t id) const {
+						NodeSizeInfo nsi = GetSize();
+						return
+							Caption.LayoutRectangle.TopLeft() +
+							Vector2(nsi.OverallSize.X, nsi.TextSize.Y + (SocketGap + SocketHeight) * id + SocketHeight * 0.5 + SocketGap);
+					}
+					Link *&GetInSocketLink(size_t id) {
+						return GetAt<LinkInfo>(InSocketsCache, id)->Target;
+					}
+					Link *&GetOutSocketLink(size_t id) {
+						return GetAt<LinkInfo>(OutSocketsCache, id)->Target;
+					}
+				};
+
+				bool OnMouseDown(const MouseButtonInfo &info) override {
+					if (info.Button == MouseButton::Left) {
+						for (size_t i = 0; i < _nodes.Count(); ++i) {
+							HitTestInfo res = _nodes[i].HitTest(info.Position);
+							if (res.HitResult == HitObject::Background) {
+								_dragging = true;
+								_draggingNode = i;
+								_dragOffset = info.Position - _nodes[i].Caption.LayoutRectangle.TopLeft();
+							} else if (res.HitResult == HitObject::Nothing) {
+								continue;
+							} else {
+								NodeData **nd;
+								size_t *id;
+								Link *old = nullptr;
+								if (res.HitResult == HitObject::InSocket) {
+									old = _nodes[i].GetInSocketLink(res.HitID);
+									nd = &_tmpLnk.ToNode;
+									id = &_tmpLnk.ToID;
+									_linkTarget = HitObject::OutSocket;
+								} else {
+									old = _nodes[i].GetOutSocketLink(res.HitID);
+									nd = &_tmpLnk.FromNode;
+									id = &_tmpLnk.FromID;
+									_linkTarget = HitObject::InSocket;
+								}
+								if (old) {
+									_tmpLnk = *old;
+									Unlink(old);
+									_linkTarget = (_linkTarget == HitObject::InSocket ? HitObject::OutSocket : HitObject::InSocket);
+								} else {
+									_tmpLnk = Link();
+									*nd = _nodes[i].Node;
+									*id = res.HitID;
+								}
+							}
+							break;
+						}
+					}
+					return Control::OnMouseDown(info);
+				}
+
+				size_t FindWithNodeData(NodeData *nd) const {
+					for (size_t i = 0; i < _nodes.Count(); ++i) {
+						if (_nodes[i].Node == nd) {
+							return i;
+						}
+					}
+					return _nodes.Count();
+				}
+
+				const Font *_font = nullptr;
+				List<NodeInfo> _nodes;
+				List<Link*> _links;
+				const BasicText _tip;
+
+				bool _dragging = false;
+				size_t _draggingNode = 0;
+				Vector2 _dragOffset;
+
+				HitObject _linkTarget = HitObject::Nothing;
+				Link _tmpLnk;
+		};
+
+		NodePanel pnl;
+		ShaderNodeData _data[3];
 };
+const SolidBrush
+	EditorTest::NodePanel::DefaultNodeBackground(Color(100, 100, 100, 255)),
+	EditorTest::NodePanel::DefaultSocketBrush(Color(150, 150, 150, 255)),
+	EditorTest::NodePanel::DefaultActivatedSocketBrush(Color(200, 200, 200, 255));
+const Pen
+	EditorTest::NodePanel::DefaultLinkPen(Color(180, 180, 180, 255), 2.0);
 
 int main() {
 	{
@@ -2087,7 +2512,7 @@ int main() {
 //			ControlTest pl;
 //			LightTest pl;
 //			PhysicsTest pl;
-			TriangulationTest pl;
+			EditorTest pl;
 			pl.Run();
 		} catch (Exception &e) {
 			ShowMessage(e.Message());

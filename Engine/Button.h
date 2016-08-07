@@ -83,50 +83,22 @@ namespace DE {
 				Button() : ButtonBase<T>() {
 				}
 
-				virtual const Graphics::Brush *GetDefaultNormalBrush() const = 0;
-				virtual const Graphics::Brush *GetDefaultPressedBrush() const = 0;
-				virtual const Graphics::Brush *GetDefaultHoverBrush() const = 0;
+				virtual const Graphics::Brush *GetDefaultNormalBrush() const {
+					return nullptr;
+				}
+				virtual const Graphics::Brush *GetDefaultPressedBrush() const {
+					return nullptr;
+				}
+				virtual const Graphics::Brush *GetDefaultHoverBrush() const {
+					return nullptr;
+				}
 
 				Core::Event<Core::Info> Click;
 
-				Core::GetSetProperty<const Graphics::Brush*>
-					NormalBrush {
-						[this](const Graphics::Brush *brush) {
-							if (!this->Initialized()) {
-								Initialize();
-							}
-							_freeBrush = brush;
-						}, [this]() {
-							if (!this->Initialized()) {
-								Initialize();
-							}
-							return _freeBrush;
-						}
-					}, HoverBrush {
-						[this](const Graphics::Brush *brush) {
-							if (!this->Initialized()) {
-								Initialize();
-							}
-							_mOverBrush = brush;
-						}, [this]() {
-							if (!this->Initialized()) {
-								Initialize();
-							}
-							return _mOverBrush;
-						}
-					}, PressedBrush {
-						[this](const Graphics::Brush *brush) {
-							if (!this->Initialized()) {
-								Initialize();
-							}
-							_downBrush = brush;
-						}, [this]() {
-							if (!this->Initialized()) {
-								Initialize();
-							}
-							return _downBrush;
-						}
-					};
+				Core::ReferenceProperty<const Graphics::Brush*>
+					NormalBrush {nullptr},
+					HoverBrush {nullptr},
+					PressedBrush {nullptr};
 				Core::GetSetProperty<ButtonClickMode> ClickMode {
 					[this](ButtonClickMode c) {
 						this->_mode = c;
@@ -135,43 +107,21 @@ namespace DE {
 					}
 				};
 			protected:
-				const Graphics::Brush *_freeBrush = nullptr, *_mOverBrush = nullptr, *_downBrush = nullptr;
-
 				virtual void OnClick(const Core::Info &info) {
 					Click(info);
 				}
-
-				void Initialize() override {
-					ButtonBase<T>::Initialize();
-					_freeBrush = GetDefaultNormalBrush();
-					_mOverBrush = GetDefaultHoverBrush();
-					_downBrush = GetDefaultPressedBrush();
-				}
-
 				void Render(Graphics::Renderer &r) override {
 					if (
 						(((int)this->_state & (int)ButtonState::KeyboardPressed)) ||
 						((int)this->_state & (int)ButtonState::MousePressed) == (int)ButtonState::MousePressed
 					) {
-						FillRectWithFallback(this->_actualLayout, _downBrush, GetDefaultPressedBrush(), r);
+						Control::FillRectWithFallback(r, PressedBrush, GetDefaultPressedBrush(), this->_actualLayout);
 					} else if (!((int)this->_state & (int)ButtonState::MouseOver)) {
-						FillRectWithFallback(this->_actualLayout, _freeBrush, GetDefaultNormalBrush(), r);
+						Control::FillRectWithFallback(r, NormalBrush, GetDefaultNormalBrush(), this->_actualLayout);
 					} else {
-						FillRectWithFallback(this->_actualLayout, _mOverBrush, GetDefaultHoverBrush(), r);
+						Control::FillRectWithFallback(r, HoverBrush, GetDefaultHoverBrush(), this->_actualLayout);
 					}
 					ButtonBase<T>::Render(r);
-				}
-				inline static void FillRectWithFallback(
-					const DE::Core::Math::Rectangle &rect,
-					const Graphics::Brush *b,
-					const Graphics::Brush *fallBack,
-					Graphics::Renderer &r
-				) {
-					if (b) {
-						b->FillRect(rect, r);
-					} else if (fallBack) {
-						fallBack->FillRect(rect, r);
-					}
 				}
 		};
 		template <typename T = Graphics::TextRendering::BasicText> class SimpleButton : public Button<T> {
@@ -193,7 +143,6 @@ namespace DE {
 					DefaultNormalBrush,
 					DefaultHoverBrush,
 					DefaultPressedBrush;
-			protected:
 		};
 		template <typename T> const Graphics::SolidBrush SimpleButton<T>::DefaultNormalBrush(Core::Color(180, 180, 180, 255));
 		template <typename T> const Graphics::SolidBrush SimpleButton<T>::DefaultHoverBrush(Core::Color(230, 230, 230, 255));

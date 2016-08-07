@@ -241,7 +241,7 @@ namespace DE {
 						_relPos = *info.Position - topLeft;
 						MouseMove(info);
 					}
-					virtual bool OnMouseDown(const MouseButtonInfo &info) {
+					virtual bool OnMouseDown(const MouseButtonInfo &info) { // indicates whether the control handles focus change during event
 						_keys |= static_cast<int>(*info.Button);
 						MouseDown(info);
 						return false;
@@ -270,7 +270,7 @@ namespace DE {
 					virtual void OnKeyUp(const KeyInfo &info) {
 						KeyUp(info);
 					}
-					virtual bool OnMouseScroll(const MouseScrollInfo &info) {
+					virtual bool OnMouseScroll(const MouseScrollInfo &info) { // indicates whether the scrolling is handled
 						MouseScroll(info);
 						return false;
 					}
