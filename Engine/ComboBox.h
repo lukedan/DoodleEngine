@@ -108,8 +108,8 @@ namespace DE {
 					_pnl.Name = "a popup panel of a combo box";
 #endif
 				}
-				SimpleComboBox(Panel &pnl) : SimpleComboBox() {
-					_dropPnl = &pnl;
+				SimpleComboBox(ControlCollection &col) : SimpleComboBox() {
+					_dropCol = &col;
 				}
 				virtual ~SimpleComboBox() {
 					this->_disposing = true;
@@ -120,23 +120,32 @@ namespace DE {
 					});
 				}
 
-				Panel *GetDropDownPanel() {
-					return _dropPnl;
+				ControlCollection *GetDropDownPanelFather() {
+					return _dropCol;
 				}
-				const Panel *GetDropDownPanel() const {
-					return _dropPnl;
+				const ControlCollection *GetDropDownPanelFather() const {
+					return _dropCol;
 				}
-				void SetDropDownPanel(Panel *pnl) {
+				void SetDropDownPanelFather(ControlCollection *col) {
 					if (!this->Initialized()) {
 						Initialize();
 					}
-					if (_dropPnl) {
-						_dropPnl->Children().Delete(_box);
+					if (_dropCol) {
+						_dropCol->Delete(_box);
 					}
-					_dropPnl = pnl;
-					if (_dropPnl) {
-						_dropPnl->Children().Insert(_box);
+					_dropCol = col;
+					if (_dropCol) {
+						_dropCol->Insert(_box);
+						ResetDropPanelPosition();
 						ResetItemsSize();
+					}
+				}
+				void SetDropPanelZIndex(int zIndex) {
+					if (!this->Initialized()) {
+						Initialize();
+					}
+					if (_dropCol) {
+						_dropCol->SetZIndex(_box, zIndex);
 					}
 				}
 
@@ -210,11 +219,24 @@ namespace DE {
 					return _items.FindFirst(const_cast<Item*>(&item));
 				}
 
+				void FitLargestItem() {
+					double maxw = 0.0, maxh = 0.0;
+					_items.ForEach([&](Item *item) {
+						Core::Math::Vector2 sz = item->Content().GetSize();
+						maxw = Core::Math::Max(maxw, sz.X);
+						maxh = Core::Math::Max(maxh, sz.Y);
+						return true;
+					});
+					double diffw = maxw - _box.GetVisibleRange().Width() + this->GetActualSize().Width;
+					maxw += 4.0 * ArrowSize;
+					this->SetSize(Size(Core::Math::Max(diffw, maxw), maxh));
+				}
+
 				Core::Event<ComboBoxSelectionChangedInfo<T>> SelectionChanged;
 			protected:
 				SimpleScrollView _box;
 				WrapPanel _pnl;
-				Panel *_dropPnl = nullptr;
+				ControlCollection *_dropCol = nullptr;
 				Item *_selection = nullptr;
 				Core::Collections::List<Item*> _items;
 				Core::Color _arrowColor;
@@ -231,24 +253,28 @@ namespace DE {
 					tri.PushBack(Graphics::Vertex(rect.TopLeft(), _arrowColor));
 					tri.PushBack(Graphics::Vertex(rect.TopRight(), _arrowColor));
 					tri.PushBack(Graphics::Vertex(Core::Math::Vector2((rect.Left + rect.Right) * 0.5, rect.Bottom), _arrowColor));
+					r.BindTexture(Graphics::TextureID());
 					r.DrawVertices(tri, Graphics::RenderMode::Triangles);
 				}
 
 				virtual void Initialize() override {
 					SimpleButton<T>::Initialize();
-					if (_dropPnl && _box.GetFather() == nullptr) {
-						_dropPnl->Children().Insert(_box);
+					if (_dropCol && _box.GetFather() == nullptr) {
+						_dropCol->Insert(_box);
 					}
 				}
 
 				virtual void FinishLayoutChange() override {
 					SimpleButton<T>::FinishLayoutChange();
-					if (_dropPnl) {
+					ResetDropPanelPosition();
+					ResetItemsSize();
+				}
+				virtual void ResetDropPanelPosition() {
+					if (_dropCol) {
 						Core::Math::Vector2 tl = this->_actualLayout.BottomLeft();
-						tl -= _dropPnl->GetActualLayout().TopLeft();
+						tl -= _dropCol->GetFather().GetActualLayout().TopLeft();
 						_box.SetMargins(Thickness(tl.X, tl.Y, 0.0, 0.0));
 					}
-					ResetItemsSize();
 				}
 				virtual void ResetItemsSize() {
 					_items.ForEach([&](Item *item) {
@@ -256,14 +282,14 @@ namespace DE {
 						return true;
 					});
 					_pnl.FitContent();
-					if (_dropPnl) {
-						double maxsz = _dropPnl->GetActualLayout().Bottom - this->_actualLayout.Bottom;
+					if (_dropCol) {
+						double maxsz = _dropCol->GetFather().GetActualLayout().Bottom - this->_actualLayout.Bottom;
 						_box.SetSize(Size(this->_actualLayout.Width(), Core::Math::Min(maxsz, _pnl.GetSize().Height)));
 					}
 				}
 				virtual void OnClick(const Core::Info &info) override {
 					SimpleButton<T>::OnClick(info);
-					if (_dropPnl) {
+					if (_dropCol) {
 						_box.SetHorizontalScrollBarValue(0.0);
 						_box.SetVisibility(Visibility::Visible);
 						_box.SetVerticalScrollBarValue(0.0);

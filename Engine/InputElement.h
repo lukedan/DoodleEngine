@@ -147,6 +147,7 @@ namespace DE {
 					TextInfo(WPARAM wParam, LPARAM lParam) :
 						Char(wParam),
 						RepeatCount(lParam & 0xFFFF),
+						IsExtendedKey(lParam & 0x1000000),
 						AltDown(lParam & 0x20000000),
 						PreviousState(lParam & 0x40000000),
 						TransitionState(lParam & 0x80000000)
@@ -155,6 +156,7 @@ namespace DE {
 
 					ReferenceProperty<wchar_t, PropertyType::ReadOnly> Char;
 					ReferenceProperty<size_t, PropertyType::ReadOnly> RepeatCount;
+					ReferenceProperty<bool, PropertyType::ReadOnly> IsExtendedKey;
 					ReferenceProperty<bool, PropertyType::ReadOnly> AltDown;
 					ReferenceProperty<bool, PropertyType::ReadOnly> PreviousState;
 					ReferenceProperty<bool, PropertyType::ReadOnly> TransitionState;

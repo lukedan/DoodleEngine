@@ -3,6 +3,7 @@
 #include "Label.h"
 #include "ScrollView.h"
 #include "BrushAndPen.h"
+#include "Clipboard.h"
 
 namespace DE {
 	namespace UI {
@@ -166,6 +167,17 @@ namespace DE {
 					);
 				}
 
+				virtual void CopySelectionToClipboard() const {
+					size_t rss = _selectS, rse = _selectE;
+					if (rss > rse) {
+						Core::Math::Swap(rss, rse);
+					}
+					if (rse > rss) {
+						Core::String str = _lbl.Content().Content.SubString(rss, rse - rss);
+						IO::Clipboard::CopyStringToClipboard(*GetWorld()->GetFather(), str);
+					}
+				}
+
 				virtual void Initialize() override {
 					ScrollViewBase::Initialize();
 					SetChild(&_lbl);
@@ -180,7 +192,7 @@ namespace DE {
 						_selectS = _selectE = _caret;
 					} else if ((int)type & (int)CaretMoveType::ExtendSelection) {
 						_selectE = _caret;
-					}
+					} // otherwise you MUST handle the selection region yourself
 					MakeCaretInView();
 				}
 				virtual void SetCaretPositionInfo(size_t newPosition, CaretMoveType type) {
@@ -391,13 +403,32 @@ namespace DE {
 				}
 				virtual void OnText(const Core::Input::TextInfo &info) override {
 					ScrollViewBase::OnText(info);
+					TCHAR tgc = info.Char;
+					// special cases
+					switch (tgc) {
+						case _TEXT('A') - _TEXT('A') + 1: { // ctrl + a
+							_selectS = 0;
+							SetCaretPositionInfo(_selectE = _lbl.Content().Content.Length(), CaretMoveType::SetBaseLine);
+							return;
+						}
+						case _TEXT('X') - _TEXT('A') + 1: { // ctrl + x
+							CopySelectionToClipboard();
+							DeleteSelectedBlock();
+							return;
+						}
+						case _TEXT('C') - _TEXT('A') + 1: { // ctrl + c
+							CopySelectionToClipboard();
+							return;
+						}
+					}
+					// ok now back to normal
 					if (_readOnly) {
 						return;
 					}
-					bool changed = true, hadSelection = DeleteSelectedBlock();
+					bool changed = true, hadSelection = DeleteSelectedBlock(), noClearSelection = false;
 					int target = _caret + 1;
 					_blink = 0.0;
-					switch (*info.Char) {
+					switch (tgc) {
 						case VK_BACK: {
 							if (!hadSelection) {
 								if (_caret > 0) {
@@ -411,24 +442,42 @@ namespace DE {
 							}
 							break;
 						}
-						default: {
-							TCHAR realChar = info.Char;
-							if (realChar == _TEXT('\r')) {
-								realChar = _TEXT('\n');
+						case _TEXT('V') - _TEXT('A') + 1: { // ctrl+v NOTE enter not concerned
+							Core::String str;
+							if (IO::Clipboard::TryRetrieveStringFromClipboard(*GetWorld()->GetFather(), str)) {
+								if (!_multiLine) {
+									Core::String tmp = str;
+									str = Core::String();
+									for (size_t i = 0; i < tmp.Length(); ++i) {
+										if (tmp[i] != _TEXT('\n') && tmp[i] != _TEXT('\r')) {
+											str += tmp[i];
+										}
+									}
+								}
+								_lbl.Content().Content.Insert(_caret, str);
+								_selectS = _caret;
+								_selectE = target = _caret + str.Length();
+								noClearSelection = true;
 							}
-							if (realChar == _TEXT('\n')) {
+							break;
+						}
+						default: {
+							if (tgc == _TEXT('\r')) {
+								tgc = _TEXT('\n');
+							}
+							if (tgc == _TEXT('\n')) {
 								if (!_multiLine) {
 									changed = false;
 									break; // terminate in advance
 								}
 							}
 							if (_insert) {
-								_lbl.Content().Content.Insert(_caret, realChar);
+								_lbl.Content().Content.Insert(_caret, tgc);
 							} else {
 								if (_caret < _lbl.Content().Content.Length() && _lbl.Content().Content[_caret] != _TEXT('\n')) {
-									_lbl.Content().Content[_caret] = realChar;
+									_lbl.Content().Content[_caret] = tgc;
 								} else {
-									_lbl.Content().Content.Insert(_caret, realChar);
+									_lbl.Content().Content.Insert(_caret, tgc);
 								}
 							}
 							break;
@@ -436,7 +485,7 @@ namespace DE {
 					}
 					if (changed) {
 						_lbl.FitContent();
-						SetCaretPositionInfo(target, CaretMoveType::SetBaseLineAndCancelSelection);
+						SetCaretPositionInfo(target, (noClearSelection ? CaretMoveType::SetBaseLine : CaretMoveType::SetBaseLineAndCancelSelection));
 						OnTextChanged(Core::Info());
 					}
 				}

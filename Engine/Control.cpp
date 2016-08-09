@@ -127,13 +127,15 @@ namespace DE {
 			}
 		}
 		void Control::ResetLayout() {
-			if (_world) {
-				if (_father && (!_father->_disposing && _father->OverrideChildrenLayout())) {
-					_father->ResetChildrenLayout();
-				} else {
-					ResetVerticalLayout();
-					ResetHorizontalLayout();
-					FinishLayoutChange();
+			if (!_disposing) {
+				if (_world) {
+					if (_father && (!_father->_disposing && _father->OverrideChildrenLayout())) {
+						_father->ResetChildrenLayout();
+					} else {
+						ResetVerticalLayout();
+						ResetHorizontalLayout();
+						FinishLayoutChange();
+					}
 				}
 			}
 		}

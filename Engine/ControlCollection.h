@@ -79,6 +79,13 @@ namespace DE {
 				void ForEachReversed(const std::function<bool(const Control*)> &func) const {
 					_cons.ForEachReversed(func);
 				}
+
+				PanelBase &GetFather() {
+					return *_father;
+				}
+				const PanelBase &GetFather() const {
+					return *_father;
+				}
 			private:
 				Node *First() {
 					return _cons.First();
@@ -87,7 +94,7 @@ namespace DE {
 					return _cons.Last();
 				}
 
-				explicit ControlCollection(PanelBase *c) : _father(c) {
+				explicit ControlCollection(PanelBase &c) : _father(&c) {
 				}
 				~ControlCollection() {
 					for (decltype(_cons)::Node *n = _cons.First(); n; n = n->Next()) {

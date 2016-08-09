@@ -12,7 +12,7 @@ namespace DE {
 				friend void Control::ResetLayout();
 				friend Control::~Control();
             public:
-				PanelBase() : Control(), _col(this) {
+				PanelBase() : Control(), _col(*this) {
 				}
 				~PanelBase() {
 					_disposing = true;
@@ -61,10 +61,12 @@ namespace DE {
 				    ResetChildrenLayout();
 				}
 				virtual void ResetChildrenLayout() {
-					_col.ForEach([&](Control *c) {
-						c->ResetLayout();
-						return true;
-					});
+					if (!_disposing) {
+						_col.ForEach([&](Control *c) {
+							c->ResetLayout();
+							return true;
+						});
+					}
 				}
 
 				virtual bool IsAnyChildFocused() const {
